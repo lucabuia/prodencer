@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-def get_charge(input="CHGCAR"):
+def VASP_get_charge(input="CHGCAR"):
     if not os.path.isfile(input):
         print("CHGCAR file not found")
         exit()
@@ -54,7 +54,7 @@ def get_charge(input="CHGCAR"):
 
     return lattice, grid, charge
 
-def write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"):
+def VASP_write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"):
 
     with open(output, "w") as f:
 
