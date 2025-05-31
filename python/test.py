@@ -14,9 +14,10 @@ ng1, ng2, ng3 = charge.shape
 
 
 a1, a2, a3 = np.linalg.norm(lattice, axis=0)
-radius = np.sqrt(a1**2 + a2**2 + a3**2)*100
+radius = np.sqrt(a1**2 + a2**2 + a3**2)/4
 center = np.array([a1, a2, a3]) / 2
 
 s, px, py, pz, dz2, dxz, dyz, dxy, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4 = project_sphere(mz, lattice, center, radius)
 
 print(s)
+print(dz2, dxz, dyz, dxy, dx2y2)
