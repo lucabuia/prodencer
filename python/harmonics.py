@@ -8,7 +8,7 @@ def project_sphere(density, lattice_vectors, center, radius):
     Parameters:
     density (numpy.ndarray): 3D array of the density.
     lattice_vectors (numpy.ndarray): 3x3 array of lattice vectors.
-    center (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
+    center_red (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
     radius (double): radius of the sphere centered at the atom, in atomic (Bohr) units.
     
     Returns:
@@ -26,7 +26,7 @@ def project_sphere(density, lattice_vectors, center, radius):
     )
 
     # Convert center from reduced coordinated to cartesian
-    center = np.dot(center, lattice_vectors.T)
+    center = np.dot(center_red, lattice_vectors.T)
     
     rx = (
         lattice_vectors[0, 0] * red_rx +
