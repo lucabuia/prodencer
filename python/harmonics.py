@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-def project_sphere(density, lattice_vectors, center, radius):
+def project_sphere(density, lattice_vectors, center_red, radius):
     """
     Calculate the multipole projections of a density onto tesseral harmonics inside a sphere.
 
@@ -14,6 +14,14 @@ def project_sphere(density, lattice_vectors, center, radius):
     Returns:
     numpy.ndarray: Array of multipole projections up to g [s, px, py, ..., g4].
     """
+
+    # Shift the density so that the atomic center is at the center of the unit cell, 
+    # ensures that the enitre sphere is contained in the unit cell (as long as the radius is reasonable)
+    density, center_red = rotate_density(density, center_red)
+
+    # Convert center from reduced coordinated to cartesian
+    center = np.dot(center_red, lattice_vectors.T)
+    
     # Lattice parameters and real-space grid
     a1, a2, a3 = np.linalg.norm(lattice_vectors, axis=0)
     ng1, ng2, ng3 = density.shape
@@ -24,9 +32,6 @@ def project_sphere(density, lattice_vectors, center, radius):
         np.linspace(0, 1 - drz, ng3),
         indexing='ij'
     )
-
-    # Convert center from reduced coordinated to cartesian
-    center = np.dot(center_red, lattice_vectors.T)
     
     rx = (
         lattice_vectors[0, 0] * red_rx +
@@ -107,3 +112,38 @@ def calc_g_orbitals(rx, ry, rz, f):
     g3 = np.sum((3 / 8 * np.sqrt(70 / np.pi)) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f)
     g4 = np.sum((3 / 16 * np.sqrt(35 / np.pi)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f)
     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
+
+def rotate_density(f, center_red):
+    ng1, ng2, ng3 = f.shape
+
+    # Grid spacing in reduced coordinates
+    drx, dry, drz = 1 / ng1, 1 / ng2, 1 / ng3
+
+    # Convert the center coordinates to the closest grid indices
+    idx_x = int(round(center_red[0] / drx)) % ng1
+    idx_y = int(round(center_red[1] / dry)) % ng2
+    idx_z = int(round(center_red[2] / drz)) % ng3
+
+    # Closest grid point
+    closest_idx = (idx_x, idx_y, idx_z)
+    red_rx = idx_x * drx
+    red_ry = idx_y * dry
+    red_rz = idx_z * drz
+    closest_point = (red_rx, red_ry, red_rz)
+    difference  = center_red - closest_point
+
+    # Calculate shifts for each axis
+    target_index = (int(round(ng1/2)), int(round(ng2/2)), int(round(ng3/2)))
+    shifts = [
+    (target_index[axis] - closest_idx[axis]) % f.shape[axis]
+    for axis in range(3)
+    ]
+
+    # Shift the density so the atomic center is at the center of the unit cell
+    new_f = np.roll(f, shift=shifts, axis=(0, 1, 2))
+    new_red_rx = target_index[0] * drx + difference[0]
+    new_red_ry = target_index[1] * dry + difference[1]
+    new_red_rz = target_index[2] * drz + difference[2]
+    new_center_red = (new_red_rx, new_red_ry, new_red_rz)
+
+    return new_f, new_center_red
