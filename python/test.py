@@ -25,4 +25,3 @@ s, px, py, pz, dz2, dxz, dyz, dxy, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm
 
 print(s)
 print(dxy, dyz, dz2, dxz, dx2y2)
-print(dz2, dxz, dyz, dxy, dx2y2)
