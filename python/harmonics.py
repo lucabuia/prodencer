@@ -8,8 +8,8 @@ def project_sphere(density, lattice_vectors, center, radius):
     Parameters:
     density (numpy.ndarray): 3D array of the density.
     lattice_vectors (numpy.ndarray): 3x3 array of lattice vectors.
-    center (numpy.ndarray): 1x3 array containing the coordinates of the atom.
-    radius (double): radius of the sphere centered at the atom.
+    center (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
+    radius (double): radius of the sphere centered at the atom, in atomic (Bohr) units.
     
     Returns:
     numpy.ndarray: Array of multipole projections up to g [s, px, py, ..., g4].
@@ -24,6 +24,9 @@ def project_sphere(density, lattice_vectors, center, radius):
         np.linspace(0, 1 - drz, ng3),
         indexing='ij'
     )
+
+    # Convert center from reduced coordinated to cartesian
+    center = np.dot(center, lattice_vectors.T)
     
     rx = (
         lattice_vectors[0, 0] * red_rx +
