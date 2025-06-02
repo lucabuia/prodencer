@@ -8,7 +8,9 @@ def project_sphere(density, lattice_vectors, center, radius):
     Parameters:
     density (numpy.ndarray): 3D array of the density.
     lattice_vectors (numpy.ndarray): 3x3 array of lattice vectors.
-
+    center (numpy.ndarray): 1x3 array containing the coordinates of the atom.
+    radius (double): radius of the sphere centered at the atom.
+    
     Returns:
     numpy.ndarray: Array of multipole projections up to g [s, px, py, ..., g4].
     """
