@@ -71,46 +71,47 @@ def project_sphere(density, lattice_vectors, center_red, radius):
 
 # Definition of the multipoles (tesseral harmonics)
 def calc_p_orbitals(rx, ry, rz, f):
-    rx[rx == 0] = 1e-30
-    ry[ry == 0] = 1e-30
-    rz[rz == 0] = 1e-30
-    px = np.sum(np.sqrt(3 / (4 * np.pi)) * rx * f)
-    py = np.sum(np.sqrt(3 / (4 * np.pi)) * ry * f)
-    pz = np.sum(np.sqrt(3 / (4 * np.pi)) * rz * f)
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+    px = np.sum(np.sqrt(3 / (4 * np.pi)) * rx * f / r)
+    py = np.sum(np.sqrt(3 / (4 * np.pi)) * ry * f / r)
+    pz = np.sum(np.sqrt(3 / (4 * np.pi)) * rz * f / r)
     return px, py, pz
 
 def calc_d_orbitals(rx, ry, rz, f):
-    r2 = rx**2 + ry**2 + rz**2
-    dz2 = np.sum((1 / 4 * np.sqrt(5 / np.pi)) * (3 * rz**2 - r2) * f)
-    dxz = np.sum((1 / 2 * np.sqrt(15 / np.pi)) * rz * rx * f)
-    dyz = np.sum((1 / 2 * np.sqrt(15 / np.pi)) * ry * rz * f)
-    dxy = np.sum((1 / 4 * np.sqrt(15 / np.pi)) * 2 * rx * ry * f)
-    dx2y2 = np.sum((1 / 4 * np.sqrt(15 / np.pi)) * (rx**2 - ry**2) * f)
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+    dz2 = np.sum((1 / 4 * np.sqrt(5 / np.pi)) * (3 * rz**2 - r**2) * f / r**2)
+    dxz = np.sum((1 / 2 * np.sqrt(15 / np.pi)) * rz * rx * f / r**2)
+    dyz = np.sum((1 / 2 * np.sqrt(15 / np.pi)) * ry * rz * f / r**2)
+    dxy = np.sum((1 / 4 * np.sqrt(15 / np.pi)) * 2 * rx * ry * f / r**2)
+    dx2y2 = np.sum((1 / 4 * np.sqrt(15 / np.pi)) * (rx**2 - ry**2) * f / r**2)
     return dz2, dxz, dyz, dxy, dx2y2
 
 def calc_f_orbitals(rx, ry, rz, f):
-    r2 = rx**2 + ry**2 + rz**2
-    fm3 = np.sum(np.sqrt(35 / (32 * np.pi)) * (3 * rx**2 * ry - ry**3) * f)
-    fm2 = np.sum(np.sqrt(105 / (16 * np.pi)) * (2 * rx * ry * rz) * f)
-    fm1 = np.sum(np.sqrt(21 / (32 * np.pi)) * ry * (5 * rz**2 - r2) * f)
-    f0 = np.sum(np.sqrt(7 / (16 * np.pi)) * rz * (5 * rz**2 - r2) * f)
-    f1 = np.sum(np.sqrt(21 / (32 * np.pi)) * rx * (5 * rz**2 - r2) * f)
-    f2 = np.sum(np.sqrt(105 / (16 * np.pi)) * (rx**2 - ry**2) * rz * f)
-    f3 = np.sum(np.sqrt(35 / (32 * np.pi)) * (rx**3 - 3 * rx * ry**2) * f)
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+    fm3 = np.sum(np.sqrt(35 / (32 * np.pi)) * (3 * rx**2 * ry - ry**3) * f / r**3)
+    fm2 = np.sum(np.sqrt(105 / (16 * np.pi)) * (2 * rx * ry * rz) * f / r**3)
+    fm1 = np.sum(np.sqrt(21 / (32 * np.pi)) * ry * (5 * rz**2 - r**2) * f / r**3)
+    f0 = np.sum(np.sqrt(7 / (16 * np.pi)) * rz * (5 * rz**2 - r**2) * f / r**3)
+    f1 = np.sum(np.sqrt(21 / (32 * np.pi)) * rx * (5 * rz**2 - r**2) * f / r**3)
+    f2 = np.sum(np.sqrt(105 / (16 * np.pi)) * (rx**2 - ry**2) * rz * f / r**3)
+    f3 = np.sum(np.sqrt(35 / (32 * np.pi)) * (rx**3 - 3 * rx * ry**2) * f / r**3)
     return fm3, fm2, fm1, f0, f1, f2, f3
 
 def calc_g_orbitals(rx, ry, rz, f):
-    r2 = rx**2 + ry**2 + rz**2
-    r4 = r2**2
-    gm4 = np.sum((3 / 4 * np.sqrt(35 / np.pi)) * (rx**3 * ry - rx * ry**3) * f)
-    gm3 = np.sum((3 / 8 * np.sqrt(70 / np.pi)) * (3 * rx**2 * ry * rz - ry**3 * rz) * f)
-    gm2 = np.sum((3 / 8 * np.sqrt(5 / np.pi)) * (14 * rx * ry * rz**2 - 2 * rx * ry * r2) * f)
-    gm1 = np.sum((3 / 16 * np.sqrt(5 / np.pi)) * (7 * ry * rz**3 - 3 * rz * ry * r2) * f)
-    g0 = np.sum((3 / 16 * np.sqrt(1 / np.pi)) * (35 * rz**4 - 30 * rz**2 * r2 + 3 * r4) * f)
-    g1 = np.sum((3 / 16 * np.sqrt(5 / np.pi)) * (7 * rx * rz**3 - 3 * rz * rx * r2) * f)
-    g2 = np.sum((3 / 8 * np.sqrt(5 / np.pi)) * ((rx**2 - ry**2) * (7 * rz**2 - r2)) * f)
-    g3 = np.sum((3 / 8 * np.sqrt(70 / np.pi)) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f)
-    g4 = np.sum((3 / 16 * np.sqrt(35 / np.pi)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f)
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+    gm4 = np.sum((3 / 4 * np.sqrt(35 / np.pi)) * (rx**3 * ry - rx * ry**3) * f / r**4)
+    gm3 = np.sum((3 / 8 * np.sqrt(70 / np.pi)) * (3 * rx**2 * ry * rz - ry**3 * rz) * f / r**4)
+    gm2 = np.sum((3 / 8 * np.sqrt(5 / np.pi)) * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f / r**4)
+    gm1 = np.sum((3 / 16 * np.sqrt(5 / np.pi)) * (7 * ry * rz**3 - 3 * rz * ry * r**2) * f / r**4)
+    g0 = np.sum((3 / 16 * np.sqrt(1 / np.pi)) * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) * f / r**4)
+    g1 = np.sum((3 / 16 * np.sqrt(5 / np.pi)) * (7 * rx * rz**3 - 3 * rz * rx * r**2) * f / r**4)
+    g2 = np.sum((3 / 8 * np.sqrt(5 / np.pi)) * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) * f / r**4)
+    g3 = np.sum((3 / 8 * np.sqrt(70 / np.pi)) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f / r**4)
+    g4 = np.sum((3 / 16 * np.sqrt(35 / np.pi)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f / r**4)
     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
 
 def rotate_density(f, center_red):
