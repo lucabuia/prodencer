@@ -1,15 +1,14 @@
-# TEST: project the Mz spin density the central Mn ion and one of the F ions of MnF2 onto the spherical harmonics. The only activated multipoles should be s, dxy, dz2. Compare VASP-GGA with Abinit-LDA.
-
 from ABINIT_density_functions import ABINIT_get_density
 from VASP_density_functions import VASP_get_density
 from harmonics import project_sphere
 import numpy as np
+import spglib
 
 # ABINIT
-# lattice, grid, charge, mx, my, mz = ABINIT_get_density("GSo_DEN.nc")
+# lattice, grid, charge, mx, my, mz = ABINIT_get_density("MnF2_DEN.nc")
 
 # VASP
-lattice, grid, charge, mx, my, mz = VASP_get_density("CHGCAR")
+lattice, grid, charge, mx, my, mz = VASP_get_density("MnF2_CHGCAR")
 
 
 # Central Mn ion
