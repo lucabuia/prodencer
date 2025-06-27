@@ -128,6 +128,23 @@ def proj_g(rx, ry, rz, f):
     g4  = np.sum( (3 / 16 * np.sqrt(35 / np.pi)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f / r**4)
     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
 
+def proj_h(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+    hm5 = np.sum(np.sqrt(693/(512*np.pi)) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f / r**5)
+    hm4 = np.sum(np.sqrt(3465/(265*np.pi)) * (4*rx*ry*rz*(rx**2 - ry**2)) * f / r**5)
+    hm3 = np.sum(np.sqrt(385/(512*np.pi)) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f / r**5)
+    hm2 = np.sum(np.sqrt(1155/(64*np.pi)) * (2*rx*ry*rz*(3*rz**2 - r**2)) * f / r**5)
+    hm1 = np.sum(np.sqrt(165/(256*np.pi)) * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
+    h0 = np.sum(np.sqrt(11/(256*np.pi)) * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * f / r**5)
+    h1 = np.sum(np.sqrt(165/(256*np.pi)) * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
+    h2 = np.sum(np.sqrt(1155/(64*np.pi)) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * f / r**5)
+    h3 = np.sum(np.sqrt(385/(512*np.pi)) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f / r**5)
+    h4 = np.sum(np.sqrt(3465/(256*np.pi)) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f / r**5)
+    h5 = np.sum(np.sqrt(693/(512*np.pi)) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f / r**5)
+
+    return hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5
+
 
 def rotate_density(f, center_red):
     """
