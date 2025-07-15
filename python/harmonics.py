@@ -347,3 +347,151 @@ def output_analytical_densities(lattice, positions, radius, coeffs, filename_pre
             max_coeff = np.max(np.abs(coeffs[:, component_index]))
             if max_coeff > threshold:
                 generate_xsf_file(value, lattice, f"{filename_prefix}_{key}.xsf")
+
+
+def project_SC_irrep(f, symm, tnons, translations_SC, kpoint, char_table):
+    """
+    Project a charge or spin density from a distorted supercell onto the 
+    irreducible representations of the parent space group's primitive cell.
+
+    This function applies all symmetry operations (rotations and translations)
+    of the parent space group to the supercell density and averages the 
+    contributions weighted by the character table for the specified irrep.
+
+    Parameters
+    ----------
+    f : ndarray
+        3D array (Nx, Ny, Nz) representing the charge or spin density on a real-space grid.
+    symm : ndarray
+        Array of shape (N_symm, 3, 3) containing rotation/mirror matrices (integer values).
+    tnons : ndarray
+        Array of shape (N_symm, 3) containing fractional translations associated with each symmetry operation.
+    translations_SC : ndarray
+        Array of shape (N_trans, 3) containing fractional translations of the supercell relative to the primitive cell.
+    kpoint : ndarray
+        1D array of shape (3,) representing the k-point in fractional coordinates (relative to the reciprocal lattice).
+    char_table : ndarray
+        1D array of length N_symm giving the character of each symmetry operation for the target irrep.
+
+    Returns
+    -------
+    proj : ndarray
+        3D array (Nx, Ny, Nz) of the projected charge or spin density.
+    """
+    grid = f.shape  # Grid dimensions (Nx, Ny, Nz)
+
+    # Precompute phase factors: exp(i 2π R⋅k) for each supercell translation
+    phase = np.exp(1j * 2 * np.pi * np.dot(translations_SC, kpoint))
+
+    # Initialize projected density
+    proj = np.zeros(f.shape)
+
+    # Loop over supercell translations
+    for t in range(translations_SC.shape[0]):
+        # Loop over all symmetry operations in the parent space group
+        for s in range(symm.shape[0]):
+            # Generate grid of integer indices (i, j, k)
+            i, j, k = np.meshgrid(
+                np.arange(grid[0]),
+                np.arange(grid[1]),
+                np.arange(grid[2]),
+                indexing='ij'
+            )
+
+            # Stack indices into vectors of shape (Nx, Ny, Nz, 3)
+            v = np.stack((i, j, k), axis=-1)
+
+            # Apply rotation to grid points
+            # Result has shape (Nx, Ny, Nz, 3) and is cast to float for translation
+            v_new = np.tensordot(v, symm[s], axes=([3], [1])).astype(float)
+
+            # Apply translation (tnons) and supercell translation (translations_SC[t])
+            v_new += (tnons[s] + translations_SC[t] / 2) * grid
+
+            # Wrap indices back into grid range using modulo
+            i_new = v_new[..., 0] % grid[0]
+            j_new = v_new[..., 1] % grid[1]
+            k_new = v_new[..., 2] % grid[2]
+
+            # Convert to integer indices
+            i_new = i_new.astype(int)
+            j_new = j_new.astype(int)
+            k_new = k_new.astype(int)
+
+            # Apply projection formula:
+            # - phase[t]: phase factor for supercell translation
+            # - char_table[s]: character for this symmetry op in the irrep
+            # - normalization: total number of operations (N_symm * N_trans)
+            proj[i, j, k] += np.real(
+                phase[t] * char_table[s] /
+                (symm.shape[0] * translations_SC.shape[0]) *
+                f[i_new, j_new, k_new]
+            )
+
+    return proj
+
+def project_UC_irrep(f, symm, tnons, char_table):
+    """
+    Project a charge or spin density onto the irreducible representations 
+    of the parent space group's primitive cell.
+
+    This version assumes the distorted structure shares the same unit cell 
+    as the parent phase (no supercell translations).
+
+    Parameters
+    ----------
+    f : ndarray
+        3D array (Nx, Ny, Nz) representing the charge or spin density 
+        on a real-space grid.
+    symm : ndarray
+        Array of shape (N_symm, 3, 3) containing rotation/mirror matrices 
+        (integer values).
+    tnons : ndarray
+        Array of shape (N_symm, 3) containing fractional translations 
+        associated with each symmetry operation.
+    char_table : ndarray
+        1D array of length N_symm giving the character of each symmetry 
+        operation for the target irrep.
+
+    Returns
+    -------
+    proj : ndarray
+        3D array (Nx, Ny, Nz) of the projected charge or spin density.
+    """
+    grid = f.shape  # Grid dimensions (Nx, Ny, Nz)
+
+    # Initialize projected density
+    proj = np.zeros(f.shape)
+
+    # Loop over all symmetry operations in the parent space group
+    for s in range(symm.shape[0]):
+        # Generate grid of integer indices (i, j, k)
+        i, j, k = np.meshgrid(
+            np.arange(grid[0]),
+            np.arange(grid[1]),
+            np.arange(grid[2]),
+            indexing='ij'
+        )
+
+        # Stack indices into vectors of shape (Nx, Ny, Nz, 3)
+        v = np.stack((i, j, k), axis=-1)
+
+        # Apply rotation to grid points
+        v_new = np.tensordot(v, symm[s], axes=([3], [1])).astype(float)
+
+        # Apply fractional translation (tnons[s])
+        v_new += tnons[s] * grid
+
+        # Wrap indices back into grid range using modulo
+        i_new = (v_new[..., 0] % grid[0]).astype(int)
+        j_new = (v_new[..., 1] % grid[1]).astype(int)
+        k_new = (v_new[..., 2] % grid[2]).astype(int)
+
+        # Apply projection formula:
+        # - char_table[s]: character for this symmetry op in the irrep
+        # - normalization: total number of operations (N_symm)
+        proj[i, j, k] += np.real(
+            char_table[s] / symm.shape[0] * f[i_new, j_new, k_new]
+        )
+
+    return proj
