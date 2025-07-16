@@ -4,5 +4,4 @@ Multipole projection code in Python for projecting charge/spin densities from VA
 
 
 TO DO
-- make sure that it works for the case of a charge-only density (no spin)
-- add function that does inverse projection (takes coefficients and positions and prints a fictitious density with the appropriate atomic multipoles)
+- make sure that it works for the case of a charge-only density with Abinit (no spin)
