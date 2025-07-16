@@ -1,6 +1,8 @@
 # Multipole project
 
-Multipole projection code in Python for projecting charge/spin densities from VASP and Abinit onto the atomic multipoles (tesseral harmonics).
+Multipole projection code in Python for projecting charge/spin densities from VASP and Abinit:
+1) In spheres around atoms onto the atomic multipoles (tesseral harmonics);
+2) In the entire unit cell onto the irreducible representation of the space groups (through spglib).
 
 
 TO DO
