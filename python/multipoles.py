@@ -3,6 +3,7 @@ import netCDF4 as nc
 import os
 import spglib
 
+
 def ABINIT_get_density(input="GSo_DEN.nc"):
     if not os.path.isfile(input):
         print("ABINIT density file not found")
@@ -48,6 +49,7 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
     print("ABINIT density data read successfully")
 
     return lattice, (ng1, ng2, ng3), charge_density, mx, my, mz
+
 
 def VASP_get_density(input="CHGCAR"):
     if not os.path.isfile(input):
@@ -147,6 +149,7 @@ def VASP_write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"
         if grid[0]*grid[1]*grid[2]%5 != 0:
             f.write( ' ' + ' '.join(map("{:.10E}".format, charge[-((grid[0]*grid[1]*grid[2])%5):])) )
 
+
 def real_space_grid(lattice, Nx, Ny, Nz):
     """
     Generate a real-space grid within the unit cell based on the lattice vectors.
@@ -183,6 +186,7 @@ def real_space_grid(lattice, Nx, Ny, Nz):
         lattice[2, 2] * red_rz
     )
     return rx, ry, rz
+
 
 def project_sphere(density, lattice, center_red, radius):
     """
@@ -576,6 +580,7 @@ def project_SC_irrep(f, symm, tnons, translations_SC, kpoint, char_table):
 
     return proj
 
+
 def project_UC_irrep(f, symm, tnons, char_table):
     """
     Project a charge or spin density onto the irreducible representations 
@@ -641,6 +646,7 @@ def project_UC_irrep(f, symm, tnons, char_table):
         )
 
     return proj
+
 
 def wyckoff(center, space_group_number):
     """
