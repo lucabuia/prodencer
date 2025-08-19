@@ -1,0 +1,6 @@
+README.md
+pyproject.toml
+src/prodenser.egg-info/PKG-INFO
+src/prodenser.egg-info/SOURCES.txt
+src/prodenser.egg-info/dependency_links.txt
+src/prodenser.egg-info/top_level.txt
