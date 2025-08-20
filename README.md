@@ -1,6 +1,6 @@
 # ProDenCeR
 
-Project Densities onto Cubic/tesseral harmonics and Representations of space/point groups.
+Project Densities onto Cubic/tesseral harmonics & Representations of space/point groups.
 
 <img src="Logo.png" alt="ProDenCeR logo" width="250"/>
 
