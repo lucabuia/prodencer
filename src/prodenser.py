@@ -12,7 +12,7 @@ def project_harmonics(
     radius,
     spacegroup=1,
     output_analytical=False,
-    decimals=3,
+    decimals=4,
 ):
     center = np.asarray(center)
 
@@ -165,20 +165,20 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
         # Read density data
         if "density" in dataset.variables:
-            density = np.squeeze(dataset.variables["density"][:])
+            density = dataset.variables["density"][:]
             # Reorder so dimensions become: x, y, z, components
-            density = np.transpose(density, (3, 2, 1, 0))
+            density = np.transpose(density, (4, 3, 2, 1, 0))
         else:
             raise RuntimeError("Density data not found in the file.")
 
         # Extract grid dimensions
-        ng1, ng2, ng3, components = density.shape
+        rc, ng1, ng2, ng3, components = density.shape
 
         # Calculate normalization constant such that everything is in atomic units
         norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
 
         # Always extract charge
-        charge = density[:, :, :, 0] / norm_const
+        charge = density[0, :, :, :, 0] / norm_const
 
         # Finally convert lattice to angstrom
         lattice = lattice * 0.5291772083
@@ -191,9 +191,9 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
         elif components == 4:
             # SOC / non-collinear: charge + mx,my,mz present
-            mx = density[:, :, :, 1] / norm_const
-            my = density[:, :, :, 2] / norm_const
-            mz = density[:, :, :, 3] / norm_const
+            mx = density[0, :, :, :, 1] / norm_const
+            my = density[0, :, :, :, 2] / norm_const
+            mz = density[0, :, :, :, 3] / norm_const
             dataset.close()
             print("ABINIT density file read successfully: contains both charge and spin densities.")
             return lattice, (ng1, ng2, ng3), charge, mx, my, mz
