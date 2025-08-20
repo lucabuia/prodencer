@@ -5,134 +5,6 @@ import sys
 import spglib
 
 
-def project_harmonics(
-    density_file,
-    dft_code,
-    center,
-    radius,
-    spacegroup=1,
-    output_analytical=False,
-    decimals=4,
-):
-    center = np.asarray(center)
-
-    # load density explicitly according to dft_code
-    ft = dft_code.lower()
-    if ft == "abinit":
-        out = ABINIT_get_density(density_file)
-    elif ft == "vasp":
-        out = VASP_get_density(density_file)
-    else:
-        raise ValueError("dft_code must be 'abinit' or 'vasp'")
-
-    # Decide components depending on what the reader returned
-    if len(out) == 3:
-        lattice, grid, charge = out
-        comp_arrays = {"charge": charge}
-    elif len(out) == 6:
-        lattice, grid, charge, mx, my, mz = out
-        comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
-    else:
-        raise ValueError(
-            f"Unexpected return from density reader: expected 3 or 6 items, got {len(out)}"
-        )
-
-    positions = np.round(wyckoff(center, spacegroup), 5)
-
-    try:
-        # get the name of the calling Python script without extension
-        input_basename = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-    except Exception:
-        # fallback if running in an interactive session
-        input_basename = "output"
-    output_file = input_basename + ".pdout"
-
-    # formatting settings
-    FIELD_WIDTH = 12
-    NUM_FMT = f"{{:{FIELD_WIDTH}.{decimals}f}}"
-    LABEL_FMT = f"{{:<{FIELD_WIDTH}}}"
-
-    def fmt(v):
-        return NUM_FMT.format(v)
-
-    # labels for each multipole
-    MULTIPOLE_LABELS = {
-        "s": ["s"],
-        "p": ["y", "z", "x"],
-        "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
-        "f": ["y(3x^2-y)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
-        "g": ["xy(x^2-y^2)", "yz(3x^2-y)", "xyz^2", "yz^3", "z^4", "xz^3",
-              "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"]
-    }
-
-    # helper function to print to screen and file
-    def write(msg):
-        print(msg)
-        f.write(msg + "\n")
-
-    def print_block(label, arr, labels_list):
-        write(LABEL_FMT.format(label) + " | ".join(f"{lab:>{FIELD_WIDTH}}" for lab in labels_list))
-        write(LABEL_FMT.format(label) + " | ".join(fmt(v) for v in arr))
-
-    with open(output_file, "w") as f:
-
-        # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Angstrom) ===")
-        for i, vec in enumerate(lattice):
-            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
-
-        write("\n=== Wyckoff-equivalent positions ===")
-        for i, pos in enumerate(positions):
-            write(f"Position {i+1}: [{pos[0]:.5f}, {pos[1]:.5f}, {pos[2]:.5f}]")
-        write("\n" + "-"*145 + "\n")
-
-        # --- Multipole projections ---
-        for comp, arr in comp_arrays.items():
-            coeffs_list = []
-
-            write(f"\n=== Projections for component: {comp} ===\n")
-
-            for idx, pos in enumerate(positions):
-                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
-                coeffs_list.append(coeffs_row)
-
-                s = coeffs_row[0:1]
-                p = coeffs_row[1:4]
-                d = coeffs_row[4:9]
-                f_arr = coeffs_row[9:16]
-                g_arr = coeffs_row[16:25]
-
-                write(f"Position {idx+1}: {pos}")
-                write("-" * 145)
-                print_block("s", s, MULTIPOLE_LABELS["s"])
-                print_block("p", p, MULTIPOLE_LABELS["p"])
-                print_block("d", d, MULTIPOLE_LABELS["d"])
-                print_block("f", f_arr, MULTIPOLE_LABELS["f"])
-                print_block("g", g_arr, MULTIPOLE_LABELS["g"])
-                write("-" * 145 + "\n")
-
-            coeffs = np.array(coeffs_list)
-
-            # Sum over positions
-            sum_coeffs = np.sum(coeffs, axis=0)
-            write(f"=== Sum over positions for component: {comp} ===")
-            write("-" * 145)
-            print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
-            print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
-            print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
-            print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
-            print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
-            write("-" * 145 + "\n")
-
-            if output_analytical:
-                outname = f"{input_basename}_{comp}"
-                write("Outputting the analytical harmonics into .xsf files. Might take a while...\n")
-                output_analytical_densities(lattice, positions, radius, coeffs, outname)
-                write("Done!")
-
-
-
-
 def ABINIT_get_density(input="GSo_DEN.nc"):
     """
     Read an ABINIT density NetCDF file.
@@ -660,6 +532,35 @@ def output_analytical_densities(lattice, positions, radius, coeffs, filename_pre
                 generate_xsf_file(value, lattice, f"{filename_prefix}_{key}.xsf")
 
 
+def wyckoff(center, space_group_number):
+    """
+    Calculate all symmetry-equivalent positions for a given center using spglib.
+
+    Parameters:
+        center (array-like): Reduced coordinates of the center [x, y, z].
+        space_group_number (int): Space group Hall number (1-530): https://yseto.net/en/sg/sg1
+
+    Returns:
+        list: List of unique symmetry-equivalent positions.
+    """
+    center = np.array(center)
+    symmetry = spglib.get_symmetry_from_database(space_group_number)
+    rotations = np.array(symmetry['rotations'])
+    translations = np.array(symmetry['translations'])
+
+    # Generate symmetry-equivalent positions
+    positions = []
+    for rotation, translation in zip(rotations, translations):
+        new_position = np.dot(rotation, center) + translation
+        # Wrap coordinates within [0, 1)
+        new_position = np.mod(new_position, 1)
+        positions.append(tuple(new_position))
+
+    # Remove duplicates
+    unique_positions = list(set(positions))
+    return unique_positions
+
+
 def project_SC_irrep(f, symm, tnons, translations_SC, kpoint, char_table):
     """
     Project a charge or spin density from a distorted supercell onto the 
@@ -809,30 +710,127 @@ def project_UC_irrep(f, symm, tnons, char_table):
     return proj
 
 
-def wyckoff(center, space_group_number):
-    """
-    Calculate all symmetry-equivalent positions for a given center using spglib.
+def project_harmonics(
+    density_file,
+    dft_code,
+    center,
+    radius,
+    spacegroup=1,
+    output_analytical=False,
+    decimals=4,
+):
+    center = np.asarray(center)
 
-    Parameters:
-        center (array-like): Reduced coordinates of the center [x, y, z].
-        space_group_number (int): Space group Hall number (1-530): https://yseto.net/en/sg/sg1
+    # load density explicitly according to dft_code
+    ft = dft_code.lower()
+    if ft == "abinit":
+        out = ABINIT_get_density(density_file)
+    elif ft == "vasp":
+        out = VASP_get_density(density_file)
+    else:
+        raise ValueError("dft_code must be 'abinit' or 'vasp'")
 
-    Returns:
-        list: List of unique symmetry-equivalent positions.
-    """
-    center = np.array(center)
-    symmetry = spglib.get_symmetry_from_database(space_group_number)
-    rotations = np.array(symmetry['rotations'])
-    translations = np.array(symmetry['translations'])
+    # Decide components depending on what the reader returned
+    if len(out) == 3:
+        lattice, grid, charge = out
+        comp_arrays = {"charge": charge}
+    elif len(out) == 6:
+        lattice, grid, charge, mx, my, mz = out
+        comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
+    else:
+        raise ValueError(
+            f"Unexpected return from density reader: expected 3 or 6 items, got {len(out)}"
+        )
 
-    # Generate symmetry-equivalent positions
-    positions = []
-    for rotation, translation in zip(rotations, translations):
-        new_position = np.dot(rotation, center) + translation
-        # Wrap coordinates within [0, 1)
-        new_position = np.mod(new_position, 1)
-        positions.append(tuple(new_position))
+    positions = np.round(wyckoff(center, spacegroup), 5)
 
-    # Remove duplicates
-    unique_positions = list(set(positions))
-    return unique_positions
+    try:
+        # get the name of the calling Python script without extension
+        input_basename = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+    except Exception:
+        # fallback if running in an interactive session
+        input_basename = "output"
+    output_file = input_basename + ".pdout"
+
+    # formatting settings
+    FIELD_WIDTH = 12
+    NUM_FMT = f"{{:{FIELD_WIDTH}.{decimals}f}}"
+    LABEL_FMT = f"{{:<{FIELD_WIDTH}}}"
+
+    def fmt(v):
+        return NUM_FMT.format(v)
+
+    # labels for each multipole
+    MULTIPOLE_LABELS = {
+        "s": ["s"],
+        "p": ["y", "z", "x"],
+        "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
+        "f": ["y(3x^2-y)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
+        "g": ["xy(x^2-y^2)", "yz(3x^2-y)", "xyz^2", "yz^3", "z^4", "xz^3",
+              "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"]
+    }
+
+    # helper function to print to screen and file
+    def write(msg):
+        print(msg)
+        f.write(msg + "\n")
+
+    def print_block(label, arr, labels_list):
+        write(LABEL_FMT.format(label) + " | ".join(f"{lab:>{FIELD_WIDTH}}" for lab in labels_list))
+        write(LABEL_FMT.format(label) + " | ".join(fmt(v) for v in arr))
+
+    with open(output_file, "w") as f:
+
+        # --- Print lattice and positions ---
+        write("\n=== Lattice vectors (Angstrom) ===")
+        for i, vec in enumerate(lattice):
+            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
+
+        write("\n=== Wyckoff-equivalent positions ===")
+        for i, pos in enumerate(positions):
+            write(f"Position {i+1}: [{pos[0]:.5f}, {pos[1]:.5f}, {pos[2]:.5f}]")
+        write("\n" + "-"*145 + "\n")
+
+        # --- Multipole projections ---
+        for comp, arr in comp_arrays.items():
+            coeffs_list = []
+
+            write(f"\n=== Projections for component: {comp} ===\n")
+
+            for idx, pos in enumerate(positions):
+                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
+                coeffs_list.append(coeffs_row)
+
+                s = coeffs_row[0:1]
+                p = coeffs_row[1:4]
+                d = coeffs_row[4:9]
+                f_arr = coeffs_row[9:16]
+                g_arr = coeffs_row[16:25]
+
+                write(f"Position {idx+1}: {pos}")
+                write("-" * 145)
+                print_block("s", s, MULTIPOLE_LABELS["s"])
+                print_block("p", p, MULTIPOLE_LABELS["p"])
+                print_block("d", d, MULTIPOLE_LABELS["d"])
+                print_block("f", f_arr, MULTIPOLE_LABELS["f"])
+                print_block("g", g_arr, MULTIPOLE_LABELS["g"])
+                write("-" * 145 + "\n")
+
+            coeffs = np.array(coeffs_list)
+
+            # Sum over positions
+            sum_coeffs = np.sum(coeffs, axis=0)
+            write(f"=== Sum over positions for component: {comp} ===")
+            write("-" * 145)
+            print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
+            print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
+            print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
+            print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
+            print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
+            write("-" * 145 + "\n")
+
+            if output_analytical:
+                outname = f"{input_basename}_{comp}"
+                write("Outputting the analytical harmonics into .xsf files. Might take a while...\n")
+                output_analytical_densities(lattice, positions, radius, coeffs, outname)
+                write("Done!")
