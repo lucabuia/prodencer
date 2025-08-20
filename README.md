@@ -8,8 +8,8 @@ This Python code projects charge/spin densities from VASP and Abinit.
 
 The code contains several useful functions, however the three main functions are:
 
-1) project_harmonics: Pojects the charge/spin density inside spheres around atoms onto the atomic multipoles (cubic/tesseral harmonics);
+1) project_harmonics: Pojects the charge/spin density inside spheres around atoms onto the atomic multipoles (cubic/tesseral harmonics). See the example of d-wave altermagnetic MnF2 where one can check that the magnetic dipoles Mz are out of phase but the magnetic ocutpoles xyMz are in-phase.
 
-2) project_UC_irrep or project_SC_irrep: Pojects the charge/spin density of a distored unit cell onto the irreducible representation of the parent space groups (through spglib). Can be for a distortion that does not enlarge the unit cell (project_UC_irrep) or with a distortion that enlarges the unit cell and thus requires the density of the supercell (project_SC_irrep).
+2) project_UC_irrep or project_SC_irrep: Pojects the charge/spin density of a distored unit cell onto the irreducible representation of the parent space groups (through spglib). Can be for a distortion that does not enlarge the unit cell (project_UC_irrep) or with a distortion that enlarges the unit cell and thus requires the density of the supercell (project_SC_irrep). See the examples of ferroelectric HfO2 or the chiral phase of TiSe2.
 
 2025 - Luca Buiarelli and Turan Birol's Group at University of Minnesota, CEMS.
