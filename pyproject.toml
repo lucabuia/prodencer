@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prodenser"
+name = "prodencer"
 version = "0.0.1"
-description = "Project charge/spin densities onto tesseral harmonics and point-group irreps"
+description = "Project charge/spin Densities onto Cubic/tesseral harmonics and point-group Representations."
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{name="Luca Buiarelli"}]

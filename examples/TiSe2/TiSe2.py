@@ -1,4 +1,4 @@
-import prodenser as pd
+import prodencer as pd
 import numpy as np
 import spglib
 from spgrep import get_spacegroup_irreps_from_primitive_symmetry

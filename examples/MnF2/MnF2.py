@@ -1,4 +1,4 @@
-import prodenser as pd
+import prodencer as pd
 import numpy as np
 
 # Central Mn ion

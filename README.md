@@ -1,7 +1,15 @@
-# Multipole project
+# ProDenCeR
 
-<img src="Logo.png" alt="ProDenser logo" width="250"/>
+Project Densities onto Cubic/tesseral harmonics and Representations of space/point groups.
 
-Multipole projection code in Python for projecting charge/spin densities from VASP and Abinit:
-1) In spheres around atoms onto the atomic multipoles (tesseral harmonics);
-2) In the entire unit cell onto the irreducible representation of the space groups (through spglib).
+<img src="Logo.png" alt="ProDenCeR logo" width="250"/>
+
+This Python code projects charge/spin densities from VASP and Abinit. 
+
+The code contains several useful functions, however the three main functions are:
+
+1) project_harmonics: Pojects the charge/spin density inside spheres around atoms onto the atomic multipoles (cubic/tesseral harmonics);
+
+2) project_UC_irrep or project_SC_irrep: Pojects the charge/spin density of a distored unit cell onto the irreducible representation of the parent space groups (through spglib). Can be for a distortion that does not enlarge the unit cell (project_UC_irrep) or with a distortion that enlarges the unit cell and thus requires the density of the supercell (project_SC_irrep).
+
+2025 - Luca Buiarelli and Turan Birol's Group at University of Minnesota, CEMS.
