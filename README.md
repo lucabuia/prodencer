@@ -10,7 +10,7 @@ ProDenCeR is a **Python package** to project **charge** and **spin densities** f
 
 ---
 
-## ✨ Key Features
+## Key Features
 The code contains several useful functions, but the **three main functions** are:
 
 1. **`project_harmonics`**  
