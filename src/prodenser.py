@@ -126,7 +126,9 @@ def project_harmonics(
 
             if output_analytical:
                 outname = f"{input_basename}_{comp}"
+                write("Outputting the analytical harmonics into .xsf files. Might take a while...\n")
                 output_analytical_densities(lattice, positions, radius, coeffs, outname)
+                write("Done!")
 
 
 
