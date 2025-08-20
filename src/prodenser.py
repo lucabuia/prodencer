@@ -1,6 +1,7 @@
 import numpy as np
 import netCDF4 as nc
 import os
+import sys
 import spglib
 
 
@@ -11,33 +12,11 @@ def project_harmonics(
     radius,
     spacegroup=1,
     output_analytical=False,
+    decimals=3,
 ):
-    """
-    Load density (ABINIT or VASP as explicitly selected by `dft_code`), compute
-    Wyckoff-equivalent positions for `center` in the given `spacegroup`, project
-    sphere multipoles, print them, and optionally write analytical densities.
-
-    - If the chosen reader returns only (lattice, grid, charge) → only charge is projected.
-    - If the reader returns (lattice, grid, charge, mx, my, mz) → charge + spin components are projected.
-
-    Args:
-        density_file (str): path to the density file (e.g. "_DEN.nc" or "CHGCAR").
-        center (array-like): fractional coordinates of center (length-3).
-        radius (float): sphere radius (same units used by project_sphere).
-        dft_code (str): either 'abinit' or 'vasp' (must be provided).
-        spacegroup (int): Space group Hall number (1-530); default 1. Complete list here: https://yseto.net/en/sg/sg1
-        output_analytical (bool): if True, calls output_analytical_densities for each component.
-
-    Behavior:
-        - Prints multipole coefficients (s, p, d, f, g) for each Wyckoff-equivalent position
-          and for each available density component.
-        - If output_analytical is True, writes analytical density components files using
-          output_analytical_densities with basename "<inputname>_<component>_analytical.xsf" 
-          which can be opened with VESTA or XCrysDen.
-    """
     center = np.asarray(center)
 
-    # load density explicitly according to dft_code; handle both possible return shapes
+    # load density explicitly according to dft_code
     ft = dft_code.lower()
     if ft == "abinit":
         out = ABINIT_get_density(density_file)
@@ -58,40 +37,98 @@ def project_harmonics(
             f"Unexpected return from density reader: expected 3 or 6 items, got {len(out)}"
         )
 
-    # get positions equivalent to center
     positions = np.round(wyckoff(center, spacegroup), 5)
 
-    input_basename = density_file.rsplit(".", 1)[0]
+    try:
+        # get the name of the calling Python script without extension
+        input_basename = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+    except Exception:
+        # fallback if running in an interactive session
+        input_basename = "output"
+    output_file = input_basename + ".pdout"
 
-    # iterate available components and print results
-    for comp, arr in comp_arrays.items():
-        coeffs_list = []
+    # formatting settings
+    FIELD_WIDTH = 12
+    NUM_FMT = f"{{:{FIELD_WIDTH}.{decimals}f}}"
+    LABEL_FMT = f"{{:<{FIELD_WIDTH}}}"
 
-        print(f"\n=== Projections for component: {comp} ===\n")
+    def fmt(v):
+        return NUM_FMT.format(v)
 
-        for idx, pos in enumerate(positions):
-            coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
-            coeffs_list.append(coeffs_row)
+    # labels for each multipole
+    MULTIPOLE_LABELS = {
+        "s": ["s"],
+        "p": ["y", "z", "x"],
+        "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
+        "f": ["y(3x^2-y)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
+        "g": ["xy(x^2-y^2)", "yz(3x^2-y)", "xyz^2", "yz^3", "z^4", "xz^3",
+              "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"]
+    }
 
-            # slices assumed: s (0), p (1:4), d (4:9), f (9:16), g (16:25)
-            s = np.round(coeffs_row[0], 6)
-            p = np.round(coeffs_row[1:4], 6)
-            d = np.round(coeffs_row[4:9], 6)
-            f = np.round(coeffs_row[9:16], 6)
-            g = np.round(coeffs_row[16:25], 6)
+    # helper function to print to screen and file
+    def write(msg):
+        print(msg)
+        f.write(msg + "\n")
 
-            print(f"Position {idx+1}: {pos}")
-            print(f"  s: {s}")
-            print(f"  p: {p.tolist()}")
-            print(f"  d: {d.tolist()}")
-            print(f"  f: {f.tolist()}")
-            print(f"  g: {g.tolist()}\n")
+    def print_block(label, arr, labels_list):
+        write(LABEL_FMT.format(label) + " | ".join(f"{lab:>{FIELD_WIDTH}}" for lab in labels_list))
+        write(LABEL_FMT.format(label) + " | ".join(fmt(v) for v in arr))
 
-        coeffs = np.array(coeffs_list)  # (N_positions, N_coeffs)
+    with open(output_file, "w") as f:
 
-        if output_analytical:
-            outname = f"{input_basename}_{comp}"
-            output_analytical_densities(lattice, positions, radius, coeffs, outname)
+        # --- Print lattice and positions ---
+        write("\n=== Lattice vectors (Angstrom) ===")
+        for i, vec in enumerate(lattice):
+            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
+
+        write("\n=== Wyckoff-equivalent positions ===")
+        for i, pos in enumerate(positions):
+            write(f"Position {i+1}: [{pos[0]:.5f}, {pos[1]:.5f}, {pos[2]:.5f}]")
+        write("\n" + "-"*145 + "\n")
+
+        # --- Multipole projections ---
+        for comp, arr in comp_arrays.items():
+            coeffs_list = []
+
+            write(f"\n=== Projections for component: {comp} ===\n")
+
+            for idx, pos in enumerate(positions):
+                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
+                coeffs_list.append(coeffs_row)
+
+                s = coeffs_row[0:1]
+                p = coeffs_row[1:4]
+                d = coeffs_row[4:9]
+                f_arr = coeffs_row[9:16]
+                g_arr = coeffs_row[16:25]
+
+                write(f"Position {idx+1}: {pos}")
+                write("-" * 145)
+                print_block("s", s, MULTIPOLE_LABELS["s"])
+                print_block("p", p, MULTIPOLE_LABELS["p"])
+                print_block("d", d, MULTIPOLE_LABELS["d"])
+                print_block("f", f_arr, MULTIPOLE_LABELS["f"])
+                print_block("g", g_arr, MULTIPOLE_LABELS["g"])
+                write("-" * 145 + "\n")
+
+            coeffs = np.array(coeffs_list)
+
+            # Sum over positions
+            sum_coeffs = np.sum(coeffs, axis=0)
+            write(f"=== Sum over positions for component: {comp} ===")
+            write("-" * 145)
+            print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
+            print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
+            print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
+            print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
+            print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
+            write("-" * 145 + "\n")
+
+            if output_analytical:
+                outname = f"{input_basename}_{comp}"
+                output_analytical_densities(lattice, positions, radius, coeffs, outname)
+
+
 
 
 def ABINIT_get_density(input="GSo_DEN.nc"):
@@ -140,6 +177,9 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
         # Always extract charge
         charge = density[:, :, :, 0] / norm_const
+
+        # Finally convert lattice to angstrom
+        lattice = lattice * 0.5291772083
 
         if components == 1:
             # Non-magnetic / no spin data present: return only charge
@@ -344,12 +384,12 @@ def project_sphere(density, lattice, center_red, radius):
 
     # Calculate multipoles
     s = np.sum(c_sphere)
-    px, py, pz = proj_p(rx - center[0], ry - center[1], rz - center[2], c_sphere)
-    dz2, dxz, dyz, dxy, dx2y2 = proj_d(rx - center[0], ry - center[1], rz - center[2], c_sphere)
+    py, pz, px = proj_p(rx - center[0], ry - center[1], rz - center[2], c_sphere)
+    dxy, dyz, dz2, dxz, dx2y2 = proj_d(rx - center[0], ry - center[1], rz - center[2], c_sphere)
     fm3, fm2, fm1, f0, f1, f2, f3 = proj_f(rx - center[0], ry - center[1], rz - center[2], c_sphere)
     gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4 = proj_g(rx - center[0], ry - center[1], rz - center[2], c_sphere)
 
-    return np.array([s, px, py, pz, dz2, dxz, dyz, dxy, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4])
+    return np.array([s, py, pz, px, dxy, dyz, dz2, dxz, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4])
 
 
 # Definition of the multipoles (tesseral harmonics)
@@ -359,7 +399,7 @@ def proj_p(rx, ry, rz, f):
     px = np.sum(np.sqrt(3 / (4 * np.pi)) * rx * f / r)
     py = np.sum(np.sqrt(3 / (4 * np.pi)) * ry * f / r)
     pz = np.sum(np.sqrt(3 / (4 * np.pi)) * rz * f / r)
-    return px, py, pz
+    return py, pz, px
 
 def proj_d(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
