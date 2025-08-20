@@ -4,51 +4,170 @@ import os
 import spglib
 
 
+def project_harmonics(
+    density_file,
+    dft_code,
+    center,
+    radius,
+    spacegroup=1,
+    output_analytical=False,
+):
+    """
+    Load density (ABINIT or VASP as explicitly selected by `dft_code`), compute
+    Wyckoff-equivalent positions for `center` in the given `spacegroup`, project
+    sphere multipoles, print them, and optionally write analytical densities.
+
+    - If the chosen reader returns only (lattice, grid, charge) → only charge is projected.
+    - If the reader returns (lattice, grid, charge, mx, my, mz) → charge + spin components are projected.
+
+    Args:
+        density_file (str): path to the density file (e.g. "_DEN.nc" or "CHGCAR").
+        center (array-like): fractional coordinates of center (length-3).
+        radius (float): sphere radius (same units used by project_sphere).
+        dft_code (str): either 'abinit' or 'vasp' (must be provided).
+        spacegroup (int): Space group Hall number (1-530); default 1. Complete list here: https://yseto.net/en/sg/sg1
+        output_analytical (bool): if True, calls output_analytical_densities for each component.
+
+    Behavior:
+        - Prints multipole coefficients (s, p, d, f, g) for each Wyckoff-equivalent position
+          and for each available density component.
+        - If output_analytical is True, writes analytical density components files using
+          output_analytical_densities with basename "<inputname>_<component>_analytical.xsf" 
+          which can be opened with VESTA or XCrysDen.
+    """
+    center = np.asarray(center)
+
+    # load density explicitly according to dft_code; handle both possible return shapes
+    ft = dft_code.lower()
+    if ft == "abinit":
+        out = ABINIT_get_density(density_file)
+    elif ft == "vasp":
+        out = VASP_get_density(density_file)
+    else:
+        raise ValueError("dft_code must be 'abinit' or 'vasp'")
+
+    # Decide components depending on what the reader returned
+    if len(out) == 3:
+        lattice, grid, charge = out
+        comp_arrays = {"charge": charge}
+    elif len(out) == 6:
+        lattice, grid, charge, mx, my, mz = out
+        comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
+    else:
+        raise ValueError(
+            f"Unexpected return from density reader: expected 3 or 6 items, got {len(out)}"
+        )
+
+    # get positions equivalent to center
+    positions = np.round(wyckoff(center, spacegroup), 5)
+
+    input_basename = density_file.rsplit(".", 1)[0]
+
+    # iterate available components and print results
+    for comp, arr in comp_arrays.items():
+        coeffs_list = []
+
+        print(f"\n=== Projections for component: {comp} ===\n")
+
+        for idx, pos in enumerate(positions):
+            coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
+            coeffs_list.append(coeffs_row)
+
+            # slices assumed: s (0), p (1:4), d (4:9), f (9:16), g (16:25)
+            s = np.round(coeffs_row[0], 6)
+            p = np.round(coeffs_row[1:4], 6)
+            d = np.round(coeffs_row[4:9], 6)
+            f = np.round(coeffs_row[9:16], 6)
+            g = np.round(coeffs_row[16:25], 6)
+
+            print(f"Position {idx+1}: {pos}")
+            print(f"  s: {s}")
+            print(f"  p: {p.tolist()}")
+            print(f"  d: {d.tolist()}")
+            print(f"  f: {f.tolist()}")
+            print(f"  g: {g.tolist()}\n")
+
+        coeffs = np.array(coeffs_list)  # (N_positions, N_coeffs)
+
+        if output_analytical:
+            outname = f"{input_basename}_{comp}"
+            output_analytical_densities(lattice, positions, radius, coeffs, outname)
+
+
 def ABINIT_get_density(input="GSo_DEN.nc"):
+    """
+    Read an ABINIT density NetCDF file.
+
+    Returns:
+      - If the file contains only the charge density (components == 1):
+          lattice, (ng1, ng2, ng3), charge
+      - If the file contains charge + 3 spin components (components == 4):
+          lattice, (ng1, ng2, ng3), charge, mx, my, mz
+
+    Raises:
+      - FileNotFoundError if the file is missing
+      - RuntimeError for unexpected component counts
+    """
     if not os.path.isfile(input):
-        print("ABINIT density file not found")
-        exit()
+        raise FileNotFoundError(f"ABINIT density file not found: {input}")
 
     # Open the NetCDF file
     try:
         dataset = nc.Dataset(input, 'r')
     except Exception as e:
-        print(f"Error opening NetCDF file: {e}")
-        exit()
+        raise RuntimeError(f"Error opening NetCDF file: {e}")
 
-    # Read lattice vectors (converted to Angstroms)
-    if "primitive_vectors" in dataset.variables:
-        lattice = dataset.variables["primitive_vectors"][:]  # Transpose for (3x3) shape
-    else:
-        print("Primitive vectors not found in the file.")
-        exit()
+    try:
+        # Read lattice vectors
+        if "primitive_vectors" in dataset.variables:
+            lattice = dataset.variables["primitive_vectors"][:]
+        else:
+            raise RuntimeError("Primitive vectors not found in the file.")
 
-    # Read density data
-    if "density" in dataset.variables:
-        density = np.squeeze(dataset.variables["density"])
-        density = np.transpose(density, (3, 2, 1, 0)) # Reorder so the dimensions are: x, y, z, spin component
-    else:
-        print("Density data not found in the file.")
-        exit()
+        # Read density data
+        if "density" in dataset.variables:
+            density = np.squeeze(dataset.variables["density"][:])
+            # Reorder so dimensions become: x, y, z, components
+            density = np.transpose(density, (3, 2, 1, 0))
+        else:
+            raise RuntimeError("Density data not found in the file.")
 
-    # Extract grid dimensions
-    ng1, ng2, ng3, components = density.shape
+        # Extract grid dimensions
+        ng1, ng2, ng3, components = density.shape
 
-    # Calculate normalization constant such that everything is in atomic units
-    norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
+        # Calculate normalization constant such that everything is in atomic units
+        norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
 
-    # Split the density into components
-    charge_density = density[:, :, :, 0] / norm_const
-    mx = density[:, :, :, 1] / norm_const
-    my = density[:, :, :, 2] / norm_const
-    mz = density[:, :, :, 3] / norm_const
+        # Always extract charge
+        charge = density[:, :, :, 0] / norm_const
 
-    # Close the NetCDF file
-    dataset.close()
+        if components == 1:
+            # Non-magnetic / no spin data present: return only charge
+            dataset.close()
+            print("ABINIT density file read successfully: contains only charge density.")
+            return lattice, (ng1, ng2, ng3), charge
 
-    print("ABINIT density data read successfully")
+        elif components == 4:
+            # SOC / non-collinear: charge + mx,my,mz present
+            mx = density[:, :, :, 1] / norm_const
+            my = density[:, :, :, 2] / norm_const
+            mz = density[:, :, :, 3] / norm_const
+            dataset.close()
+            print("ABINIT density file read successfully: contains both charge and spin densities.")
+            return lattice, (ng1, ng2, ng3), charge, mx, my, mz
 
-    return lattice, (ng1, ng2, ng3), charge_density, mx, my, mz
+        else:
+            # Unexpected number of components: inform the user
+            raise RuntimeError(f"Unexpected number of density components: {components}. ")
+
+    finally:
+        # Ensure dataset is closed if not closed already
+        try:
+            if dataset.isopen():
+                dataset.close()
+        except Exception:
+            # dataset may already be closed or not defined; ignore
+            pass
 
 
 def VASP_get_density(input="CHGCAR"):
@@ -116,10 +235,10 @@ def VASP_get_density(input="CHGCAR"):
     chgcar.close()
 
     if len(densities) == 1:
-        print("CHGCAR contains only charge density")
+        print("CHGCAR read successfully: contains only charge density.")
         return lattice, grid, densities[0]
     elif len(densities) == 4:
-        print("CHGCAR contains charge and spin densities")
+        print("CHGCAR read successfully: contains both charge and spin densities.")
         charge, mx, my, mz = densities
         return lattice, grid, charge, mx, my, mz
     else:
