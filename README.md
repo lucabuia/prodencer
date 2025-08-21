@@ -3,7 +3,7 @@
 **Pro**ject **Den**sities onto **C**ubic/tesseral harmonics & **R**epresentations of space/point groups
 
 <p align="center">
-  <img src="Logo.png" alt="ProDenCeR logo" width="250"/>
+  <img src="Logo2.png" alt="ProDenCeR logo" width="250"/>
 </p>
 
 ProDenCeR is a **Python package** to project **charge** and **spin densities** from *VASP* and *Abinit*.  
