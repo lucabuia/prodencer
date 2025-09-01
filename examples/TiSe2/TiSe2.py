@@ -19,17 +19,8 @@ irreps, mapping_little_group = get_spacegroup_irreps_from_primitive_symmetry(sym
 char_table = get_character(irreps[1]) #Get characters of GM1m
 symm = symm[mapping_little_group]
 
-translations_SC = np.array([
-    [0, 0, 0],
-    [1, 1, 0],
-    [1, 0, 0],
-    [0, 1, 0],
-    [0, 0, 1],
-    [1, 1, 1],
-    [1, 0, 1],
-    [0, 1, 1]
-])
+supercell_size = [2, 2, 2]
 
-proj_charge = pd.project_SC_irrep(charge, symm, tnons, translations_SC, kpoint, char_table)
+proj_charge = pd.project_single_irrep(charge, symm, tnons, char_table, supercell_size, kpoint)
 
 pd.generate_xsf_file(proj_charge, lattice, "GM1m.xsf")

@@ -1,6 +1,8 @@
 import prodencer as pd
 import numpy as np
 
+space_group_number = 419
+
 # Central Mn ion
 center_Mn = np.array([0.5, 0.5, 0.5]) # Coordinates of the central Mn ion
 radius_Mn = 1.12
@@ -10,6 +12,6 @@ radius_Mn = 1.12
 # radius_F = 0.7
 
 # You can either use Abinit
-pd.project_harmonics("MnF2_DEN.nc", "abinit", center_Mn, radius_Mn, 419, output_analytical=False)
+# pd.project_harmonics("MnF2_DEN.nc", "abinit", center_Mn, radius_Mn, space_group_number, output_components=False)
 # or vasp
-# pd.project_harmonics("MnF2_CHGCAR", "vasp", center_Mn, radius_Mn, 419, output_analytical=False)
+pd.project_harmonics("MnF2_CHGCAR", "vasp", center_Mn, radius_Mn, space_group_number, output_components=False)
