@@ -13,9 +13,9 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
     Returns:
       - If the file contains only the charge density (components == 1):
-          lattice, (ng1, ng2, ng3), charge
+          lattice, atomic_positions, (ng1, ng2, ng3), charge
       - If the file contains charge + 3 spin components (components == 4):
-          lattice, (ng1, ng2, ng3), charge, mx, my, mz
+          lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
 
     Raises:
       - FileNotFoundError if the file is missing
@@ -37,6 +37,13 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         else:
             raise RuntimeError("Primitive vectors not found in the file.")
 
+        # Read atomic positions (reduced coordinates, fractional)
+        if "reduced_atom_positions" in dataset.variables:
+            atomic_positions = dataset.variables["reduced_atom_positions"][:].T
+            # Transpose so shape becomes (N_atoms, 3)
+        else:
+            raise RuntimeError("Atomic positions not found in the file.")
+
         # Read density data
         if "density" in dataset.variables:
             density = dataset.variables["density"][:]
@@ -48,41 +55,37 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         # Extract grid dimensions
         rc, ng1, ng2, ng3, components = density.shape
 
-        # Calculate normalization constant such that everything is in atomic units
+        # Normalization constant (atomic units)
         norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
 
-        # Always extract charge
+        # Charge density
         charge = density[0, :, :, :, 0] / norm_const
 
-        # Finally convert lattice to angstrom
+        # Convert lattice to angstroms
         lattice = lattice * 0.5291772083
 
         if components == 1:
-            # Non-magnetic / no spin data present: return only charge
             dataset.close()
             print("ABINIT density file read successfully: contains only charge density.")
-            return lattice, (ng1, ng2, ng3), charge
+            return lattice, atomic_positions, (ng1, ng2, ng3), charge
 
         elif components == 4:
-            # SOC / non-collinear: charge + mx,my,mz present
             mx = density[0, :, :, :, 1] / norm_const
             my = density[0, :, :, :, 2] / norm_const
             mz = density[0, :, :, :, 3] / norm_const
             dataset.close()
             print("ABINIT density file read successfully: contains both charge and spin densities.")
-            return lattice, (ng1, ng2, ng3), charge, mx, my, mz
+            return lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
 
         else:
-            # Unexpected number of components: inform the user
-            raise RuntimeError(f"Unexpected number of density components: {components}. ")
+            raise RuntimeError(f"Unexpected number of density components: {components}.")
 
     finally:
-        # Ensure dataset is closed if not closed already
+        # Ensure dataset is closed
         try:
             if dataset.isopen():
                 dataset.close()
         except Exception:
-            # dataset may already be closed or not defined; ignore
             pass
 
 
@@ -91,74 +94,150 @@ def VASP_get_density(input="CHGCAR"):
         print("CHGCAR file not found")
         exit()
 
-    chgcar = open(input, 'r')
-
-    # Skip lattice scaling and header lines
-    for _ in range(2):
+    with open(input, 'r') as chgcar:
+        # Skip header (title) and scaling factor
+        chgcar.readline()
         chgcar.readline()
 
-    # Read lattice vectors
-    lattice = np.zeros((3, 3), dtype=float)
-    for i in range(3):
-        lattice[i] = np.array(chgcar.readline().split(), dtype=float)
+        # Read lattice vectors
+        lattice = np.zeros((3, 3), dtype=float)
+        for i in range(3):
+            lattice[i] = np.array(chgcar.readline().split(), dtype=float)
 
-    # Skip lines until we find the grid shape
-    while True:
-        line = chgcar.readline()
-        if not line.strip():  # empty line
-            break
+        # Read atom types (optional, just skip/store)
+        atom_types = chgcar.readline().split()
+        atom_counts = np.array(chgcar.readline().split(), dtype=int)
+        n_atoms = np.sum(atom_counts)
 
-    # Initialize storage for densities
-    densities = []
+        # Check if coordinate system is specified (Direct/Cartesian)
+        coord_type = chgcar.readline().strip()
+        if coord_type.lower().startswith("s"):  # "Selective dynamics" case
+            coord_type = chgcar.readline().strip()
 
-    while True:
-        # Read a line and check if it has exactly three integers
-        line = chgcar.readline()
-        if not line:  # End of file
-            break
-        try:
-            grid = np.array(line.split(), dtype=int)
-            if len(grid) != 3:
+        # Read atomic positions (fractional if "Direct")
+        atomic_positions = np.zeros((n_atoms, 3), dtype=float)
+        for i in range(n_atoms):
+            atomic_positions[i] = np.array(chgcar.readline().split()[0:3], dtype=float)
+
+        # Skip the blank line after positions
+        while True:
+            line = chgcar.readline()
+            if not line.strip():
+                break
+
+        # Now read densities
+        densities = []
+        while True:
+            line = chgcar.readline()
+            if not line:
+                break
+            try:
+                grid = np.array(line.split(), dtype=int)
+                if len(grid) != 3:
+                    continue
+            except ValueError:
                 continue
-        except ValueError:
-            continue  # Skip lines that can't be converted to integers
 
-        # Extract the grid dimensions
-        ng1, ng2, ng3 = grid
+            ng1, ng2, ng3 = grid
+            density = np.zeros(ng1 * ng2 * ng3)
 
-        # Initialize the charge/spin density matrix
-        density = np.zeros(ng1 * ng2 * ng3)
+            # Read 5 values per line
+            num_full_lines = (ng1 * ng2 * ng3) // 5
+            for i in range(num_full_lines):
+                density[5 * i:5 * i + 5] = np.array(chgcar.readline().split(), dtype=float)
 
-        # Read density values
-        num_full_lines = (ng1 * ng2 * ng3) // 5
-        for i in range(num_full_lines):
-            density[5 * i:5 * i + 5] = np.array(chgcar.readline().split(), dtype=float)
+            remaining_values = (ng1 * ng2 * ng3) % 5
+            if remaining_values > 0:
+                density[-remaining_values:] = np.array(chgcar.readline().split(), dtype=float)
 
-        # Read remaining values
-        remaining_values = (ng1 * ng2 * ng3) % 5
-        if remaining_values > 0:
-            density[-remaining_values:] = np.array(chgcar.readline().split(), dtype=float)
+            density = density.reshape((ng1, ng2, ng3), order='F')
+            density /= ng1 * ng2 * ng3
 
-        # Reshape the density into a 3D array
-        density = density.reshape((ng1, ng2, ng3), order='F')
+            densities.append(density)
 
-        # Normalize the density
-        density /= ng1 * ng2 * ng3
-
-        # Add the density to the list
-        densities.append(density)
-
-    chgcar.close()
-
+    # Final output
     if len(densities) == 1:
         print("CHGCAR read successfully: contains only charge density.")
-        return lattice, grid, densities[0]
+        return lattice, atomic_positions, grid, densities[0]
     elif len(densities) == 4:
         print("CHGCAR read successfully: contains both charge and spin densities.")
         charge, mx, my, mz = densities
-        return lattice, grid, charge, mx, my, mz
+        return lattice, atomic_positions, grid, charge, mx, my, mz
     else:
         raise ValueError(f"Unexpected number of densities in CHGCAR: {len(densities)}")
+# def VASP_get_density(input="CHGCAR"):
+#     if not os.path.isfile(input):
+#         print("CHGCAR file not found")
+#         exit()
+
+#     chgcar = open(input, 'r')
+
+#     # Skip lattice scaling and header lines
+#     for _ in range(2):
+#         chgcar.readline()
+
+#     # Read lattice vectors
+#     lattice = np.zeros((3, 3), dtype=float)
+#     for i in range(3):
+#         lattice[i] = np.array(chgcar.readline().split(), dtype=float)
+
+#     # Skip lines until we find the grid shape
+#     while True:
+#         line = chgcar.readline()
+#         if not line.strip():  # empty line
+#             break
+
+#     # Initialize storage for densities
+#     densities = []
+
+#     while True:
+#         # Read a line and check if it has exactly three integers
+#         line = chgcar.readline()
+#         if not line:  # End of file
+#             break
+#         try:
+#             grid = np.array(line.split(), dtype=int)
+#             if len(grid) != 3:
+#                 continue
+#         except ValueError:
+#             continue  # Skip lines that can't be converted to integers
+
+#         # Extract the grid dimensions
+#         ng1, ng2, ng3 = grid
+
+#         # Initialize the charge/spin density matrix
+#         density = np.zeros(ng1 * ng2 * ng3)
+
+#         # Read density values
+#         num_full_lines = (ng1 * ng2 * ng3) // 5
+#         for i in range(num_full_lines):
+#             density[5 * i:5 * i + 5] = np.array(chgcar.readline().split(), dtype=float)
+
+#         # Read remaining values
+#         remaining_values = (ng1 * ng2 * ng3) % 5
+#         if remaining_values > 0:
+#             density[-remaining_values:] = np.array(chgcar.readline().split(), dtype=float)
+
+#         # Reshape the density into a 3D array
+#         density = density.reshape((ng1, ng2, ng3), order='F')
+
+#         # Normalize the density
+#         density /= ng1 * ng2 * ng3
+
+#         # Add the density to the list
+#         densities.append(density)
+
+#     chgcar.close()
+
+#     if len(densities) == 1:
+#         print("CHGCAR read successfully: contains only charge density.")
+#         return lattice, grid, densities[0]
+#     elif len(densities) == 4:
+#         print("CHGCAR read successfully: contains both charge and spin densities.")
+#         charge, mx, my, mz = densities
+#         return lattice, atomic_positions, grid, charge, mx, my, mz
+#     else:
+#         raise ValueError(f"Unexpected number of densities in CHGCAR: {len(densities)}")
 
 
 def VASP_write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"):
@@ -231,7 +310,7 @@ def project_sphere(density, lattice, center_red, radius):
     density (numpy.ndarray): 3D array of the density.
     lattice (numpy.ndarray): 3x3 array of lattice vectors.
     center_red (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
-    radius (double): radius of the sphere centered at the atom, in atomic (Bohr) units.
+    radius (double): radius of the sphere centered at the atom, in atomic (angstrom) units.
 
     Returns:
     numpy.ndarray: Array of atomic multipole projection coefficients up to g [s, px, py, ..., g4].
@@ -789,32 +868,10 @@ def project_irreps(
     supercell_size = np.asarray(supercell_size, dtype=int)
 
     # load density explicitly according to dft_code
-    ft = dft_code.lower()
-    if ft == "abinit":
-        out = ABINIT_get_density(density_file)
-    elif ft == "vasp":
-        out = VASP_get_density(density_file)
-    else:
-        raise ValueError("dft_code must be 'abinit' or 'vasp'")
+    lattice, grid, comp_arrays = load_density_file(density_file, dft_code)
 
-    # Decide components depending on what the reader returned
-    if len(out) == 3:
-        lattice, grid, charge = out
-        comp_arrays = {"charge": charge}
-    elif len(out) == 6:
-        lattice, grid, charge, mx, my, mz = out
-        comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
-    else:
-        raise ValueError(
-            f"Unexpected return from density reader: expected 3 or 6 items, got {len(out)}"
-        )
-
-    try:
-        # get the name of the calling Python script without extension
-        input_basename = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-    except Exception:
-        # fallback if running in an interactive session
-        input_basename = "output"
+    # give output file name
+    input_basename = get_output_basename()
     output_file = input_basename + ".pdout"
 
     # helper function to print to screen and file
@@ -864,7 +921,7 @@ def project_irreps(
         for comp_name, density in comp_arrays.items():
             write(f"\n=== Projecting {comp_name} component ===")
             
-            # Calculate max of original component for magnitude normalization
+            # Calculate max of original component for weight normalization
             max_original = np.max(np.abs(density))
             write(f"Max absolute value of original {comp_name}: {max_original:.6f}\n")
             
@@ -874,16 +931,16 @@ def project_irreps(
                 char_table = get_character(irrep)
                 proj_density = project_single_irrep(density, little_group_symm, little_group_tnons, char_table, supercell_size, kpoint)
                 
-                # Calculate magnitude: max(projected) / max(original)
+                # Calculate weight: max(projected) / max(original)
                 max_projected = np.max(np.abs(proj_density))
-                magnitude = max_projected / max_original if max_original > 0 else 0
+                weight = max_projected / max_original if max_original > 0 else 0
                 
                 # Generate output filename
                 outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
                 generate_xsf_file(proj_density, lattice, outname)
                 
                 write(f"Done! Saved as {outname}")
-                write(f"Magnitude (max|proj|/max|orig|): {magnitude:.6f}\n")
+                write(f"Weight (max|proj|/max|orig|): {weight:.6f}\n")
             
             write("-" * 40)
         
@@ -972,16 +1029,17 @@ def project_harmonics(
 
             coeffs = np.array(coeffs_list)
 
-            # Sum over positions
-            sum_coeffs = np.sum(coeffs, axis=0)
-            write(f"=== Sum over positions for component: {comp} ===")
-            write("-" * 145)
-            print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
-            print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
-            print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
-            print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
-            print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
-            write("-" * 145 + "\n")
+            # Only print sum if there is more than one site
+            if len(positions) > 1:
+                sum_coeffs = np.sum(coeffs, axis=0)
+                write(f"=== Sum over positions for component: {comp} ===")
+                write("-" * 145)
+                print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
+                print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
+                print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
+                print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
+                print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
+                write("-" * 145 + "\n")
 
             if output_components:
                 outname = f"{input_basename}_{comp}"
@@ -1014,15 +1072,15 @@ def load_density_file(density_file, dft_code):
     else:
         raise ValueError("dft_code must be 'abinit' or 'vasp'")
 
-    if len(out) == 3:
-        lattice, grid, charge = out
+    if len(out) == 4:
+        lattice, atomic_positions, grid, charge = out
         comp_arrays = {"charge": charge}
-    elif len(out) == 6:
-        lattice, grid, charge, mx, my, mz = out
+    elif len(out) == 7:
+        lattice, atomic_positions, grid, charge, mx, my, mz = out
         comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
     else:
         raise ValueError(
-            f"Unexpected return from density reader: expected 3 or 6 items, got {len(out)}"
+            f"Unexpected return from density reader: expected 4 or 7 items, got {len(out)}"
         )
     
     return lattice, grid, comp_arrays

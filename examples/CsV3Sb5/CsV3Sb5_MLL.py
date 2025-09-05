@@ -6,7 +6,7 @@ from spgrep.representation import get_character
 
 
 # Import density from VASP CHGCAR file
-lattice, grid, charge = pd.VASP_get_density("CHGCAR")
+lattice, atomic_positions, grid, charge = pd.VASP_get_density("CHGCAR")
 
 translations_SC = np.array([
     [0, 0, 0],

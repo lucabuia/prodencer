@@ -6,7 +6,7 @@ from spgrep.representation import get_character
 
 
 # Import density from VASP CHGCAR file
-lattice, grid, charge = pd.VASP_get_density("TiSe2_CHGCAR")
+lattice, atomic_positions, grid, charge = pd.VASP_get_density("TiSe2_CHGCAR")
 
 symmetry = spglib.get_symmetry_from_database(456) #Space group Hall number (1-530): https://yseto.net/en/sg/sg1
 symm = np.array(symmetry['rotations'])
