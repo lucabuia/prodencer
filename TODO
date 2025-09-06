@@ -1,2 +1,2 @@
-- Add i orbitals
+- Add i orbitals (you actually need h and i to cover alle the irreps or O_h)
 - Make it so the .pdout doesn't get overwritten if one exists already in the directory 
