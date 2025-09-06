@@ -24,5 +24,5 @@ The code contains several useful functions, but the **two main, high level funct
 ---
 
 ##
-2025 – Luca Buiarelli, Seongjoo Jung, Turan Birol  
+2025 – Luca Buiarelli, Seongjoo Jung, Hyeonseo Park and Turan Birol  
 University of Minnesota, CEMS
