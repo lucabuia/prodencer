@@ -1,0 +1,59 @@
+iomode   3
+pawxcdev 0
+
+pawspnorb 1
+spnorbscl 1   # \lambda_{SOC}, change this from 0 to 1 to turn on/off SOC
+
+# cutoff, k-points:
+ecut       550  eV
+pawecutdg  1100 eV
+kptopt     3
+ngkpt      16 16 24
+nshiftk    1
+shiftk     0.0 0.0 0.0
+
+# SCF:
+tolvrs     1.0d-22
+nstep      1000
+
+# Magnetism: Antiferromagnic order
+nspinor    2
+nsppol     1
+nspden     4
+spinat     0.0  0.0  6.0
+           0.0  0.0 -6.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+
+# Crystal cell definition:
+natom      6
+ntypat     2
+znucl      25 9
+typat      1 1 2 2 2 2
+xred       0.00000    0.00000    0.00000
+           0.50000    0.50000    0.50000
+           0.30464    0.30464    0.00000
+           0.69536    0.69536    0.00000
+           0.19536    0.80464    0.50000
+           0.80464    0.19536    0.50000
+
+acell      4.8736  4.8736  3.3000 angstroms
+rprim      1.0   0.0   0.0
+           0.0   1.0   0.0
+           0.0   0.0   1.0
+
+# Treating electron occupation:
+nband      80
+nbdbuf     4
+occopt     1
+
+# Printing:
+prtden     1
+prtwf      0
+prtfsurf   0
+
+# Pseudo:
+pp_dirpath "../PawJTHv1.1/LDA/" # PAW-LDA pseudopotentials obtained from PseudoDojo
+pseudos    "Mn.xml, F.xml"

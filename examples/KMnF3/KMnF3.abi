@@ -1,0 +1,96 @@
+iomode 3
+pawxcdev 0
+pawspnorb 1 # \lambda_{SOC}, change this from 0 to 1 to turn on/off SOC
+
+chkprim 0 # cell is conventional and is twice the size of the primitive one
+
+# cutoff, k-points: 
+ecut       550 eV
+pawecutdg  1100 eV
+ngkpt      12 12 8
+kptopt     3
+nshiftk    1
+shiftk     0.0 0.0 0.0
+
+# SCF:
+tolwfr     1.0d-22
+nstep      1000
+
+# Magnetism: Antiferromagnic order
+nspinor    2
+nsppol     1
+nspden     4
+spinat     0.0  0.0  6.0
+           0.0  0.0 -6.0
+           0.0  0.0 -6.0
+           0.0  0.0  6.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+           0.0  0.0  0.0
+
+
+# Crystal cell definition:
+natom      20
+ntypat     3
+znucl      25 19 9
+typat      1 1 1 1 2 2 2 2 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
+xred       0.00000000000000E-00  0.00000000000000E-00  0.00000000000000E-00
+           5.00000000000000E-01  5.00000000000000E-01  0.00000000000000E-00
+           0.00000000000000E-00  0.00000000000000E-00  5.00000000000000E-01
+           5.00000000000000E-01  5.00000000000000E-01  5.00000000000000E-01
+           0.00000000000000E-00  5.00000000000000E-01  2.50000000000000E-01
+           5.00000000000000E-01  0.00000000000000E-00  2.50000000000000E-01
+           0.00000000000000E-00  5.00000000000000E-01  7.50000000000000E-01
+           5.00000000000000E-01  0.00000000000000E-00  7.50000000000000E-01
+           2.25700000000000E-01  2.74300000000000E-01  0.00000000000000E-00 
+           7.25700000000000E-01  2.25700000000000E-01  0.00000000000000E-00 
+           2.74300000000000E-01  7.74300000000000E-01  0.00000000000000E-00  
+           7.74300000000000E-01  7.25700000000000E-01  0.00000000000000E-00
+           0.00000000000000E-00  0.00000000000000E-00  2.50000000000000E-01
+           5.00000000000000E-01  5.00000000000000E-01  2.50000000000000E-01
+           2.74300000000000E-01  2.25700000000000E-01  5.00000000000000E-01
+           7.74300000000000E-01  2.74300000000000E-01  5.00000000000000E-01
+           2.25700000000000E-01  7.25700000000000E-01  5.00000000000000E-01
+           7.25700000000000E-01  7.74300000000000E-01  5.00000000000000E-01
+           0.00000000000000E-00  0.00000000000000E-00  7.50000000000000E-01
+           5.00000000000000E-01  5.00000000000000E-01  7.50000000000000E-01
+
+# The experimental Wyckoff parameter is x=0.2257 and yields an angle~6 degrees using Eq. S1
+# in the Supplementary Materials of L. Buiarelli, R.M. Fernandes and T. Birol, 2025.
+# To reproduce the results on the dependency of the magnetic multipoles on the octahedral
+# rotation angle you might use the values of x:
+# [0.25 0.243925 0.23785 0.231775 0.2257 0.219625 0.21355 0.207475 0.2014 0.195325]
+# which interpolate between cubic (x=0.25) and double the experimental angle (~12 degrees)
+# To make sure that at x=0.25 the cell is cubic, below we set c=sqrt(2)a
+
+acell      5.89907  5.89907  8.342544799388254 angstrom
+rprim      1.0   0.0  0.0
+           0.0   1.0  0.0
+           0.0   0.0  1.0
+
+# Treating electron occupation:
+nband      256
+nbdbuf     8
+occopt     1
+
+# Printing:  
+prtden     1
+prtwf      0
+prtfsurf   1
+
+# Pseudo:
+pp_dirpath "../PawJTHv1.1/LDA/" # PAW-LDA pseudopotentials obtained from PseudoDojo
+pseudos    "Mn.xml, K.xml, F.xml"
