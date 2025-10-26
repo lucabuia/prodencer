@@ -61,8 +61,8 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         # Charge density
         charge = density[0, :, :, :, 0] / norm_const
 
-        # Convert lattice to angstroms
-        lattice = lattice * 0.5291772083
+        # # Convert lattice to angstroms?
+        # lattice = lattice * 0.5291772083
 
         if components == 1:
             dataset.close()
@@ -90,9 +90,21 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
 
 def VASP_get_density(input="CHGCAR"):
+    """
+    Read an VASP density CHGCAR file.
+
+    Returns:
+      - If the file contains only the charge density:
+          lattice, atomic_positions, (ng1, ng2, ng3), charge
+      - If the file contains charge + 3 spin components:
+          lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
+
+    Raises:
+      - FileNotFoundError if the file is missing
+      - RuntimeError for unexpected component counts
+    """
     if not os.path.isfile(input):
-        print("CHGCAR file not found")
-        exit()
+        raise FileNotFoundError(f"CHGCAR file not found")
 
     with open(input, 'r') as chgcar:
         # Skip header (title) and scaling factor
@@ -103,6 +115,9 @@ def VASP_get_density(input="CHGCAR"):
         lattice = np.zeros((3, 3), dtype=float)
         for i in range(3):
             lattice[i] = np.array(chgcar.readline().split(), dtype=float)
+        
+        # Convert lattice to atomic units (Bohr radii)
+        lattice = lattice / 0.5291772083
 
         # Read atom types (optional, just skip/store)
         atom_types = chgcar.readline().split()
@@ -164,84 +179,10 @@ def VASP_get_density(input="CHGCAR"):
         charge, mx, my, mz = densities
         return lattice, atomic_positions, grid, charge, mx, my, mz
     else:
-        raise ValueError(f"Unexpected number of densities in CHGCAR: {len(densities)}")
-# def VASP_get_density(input="CHGCAR"):
-#     if not os.path.isfile(input):
-#         print("CHGCAR file not found")
-#         exit()
-
-#     chgcar = open(input, 'r')
-
-#     # Skip lattice scaling and header lines
-#     for _ in range(2):
-#         chgcar.readline()
-
-#     # Read lattice vectors
-#     lattice = np.zeros((3, 3), dtype=float)
-#     for i in range(3):
-#         lattice[i] = np.array(chgcar.readline().split(), dtype=float)
-
-#     # Skip lines until we find the grid shape
-#     while True:
-#         line = chgcar.readline()
-#         if not line.strip():  # empty line
-#             break
-
-#     # Initialize storage for densities
-#     densities = []
-
-#     while True:
-#         # Read a line and check if it has exactly three integers
-#         line = chgcar.readline()
-#         if not line:  # End of file
-#             break
-#         try:
-#             grid = np.array(line.split(), dtype=int)
-#             if len(grid) != 3:
-#                 continue
-#         except ValueError:
-#             continue  # Skip lines that can't be converted to integers
-
-#         # Extract the grid dimensions
-#         ng1, ng2, ng3 = grid
-
-#         # Initialize the charge/spin density matrix
-#         density = np.zeros(ng1 * ng2 * ng3)
-
-#         # Read density values
-#         num_full_lines = (ng1 * ng2 * ng3) // 5
-#         for i in range(num_full_lines):
-#             density[5 * i:5 * i + 5] = np.array(chgcar.readline().split(), dtype=float)
-
-#         # Read remaining values
-#         remaining_values = (ng1 * ng2 * ng3) % 5
-#         if remaining_values > 0:
-#             density[-remaining_values:] = np.array(chgcar.readline().split(), dtype=float)
-
-#         # Reshape the density into a 3D array
-#         density = density.reshape((ng1, ng2, ng3), order='F')
-
-#         # Normalize the density
-#         density /= ng1 * ng2 * ng3
-
-#         # Add the density to the list
-#         densities.append(density)
-
-#     chgcar.close()
-
-#     if len(densities) == 1:
-#         print("CHGCAR read successfully: contains only charge density.")
-#         return lattice, grid, densities[0]
-#     elif len(densities) == 4:
-#         print("CHGCAR read successfully: contains both charge and spin densities.")
-#         charge, mx, my, mz = densities
-#         return lattice, atomic_positions, grid, charge, mx, my, mz
-#     else:
-#         raise ValueError(f"Unexpected number of densities in CHGCAR: {len(densities)}")
+        raise RuntimeError(f"Unexpected number of densities in CHGCAR: {len(densities)}")
 
 
 def VASP_write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"):
-
     with open(output, "w") as f:
 
         chgcar = open(input, 'r')
@@ -310,7 +251,7 @@ def project_sphere(density, lattice, center_red, radius):
     density (numpy.ndarray): 3D array of the density.
     lattice (numpy.ndarray): 3x3 array of lattice vectors.
     center_red (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
-    radius (double): radius of the sphere centered at the atom, in atomic (angstrom) units.
+    radius (double): radius of the sphere centered at the atom, in atomic (Bohr radii) units.
 
     Returns:
     numpy.ndarray: Array of atomic multipole projection coefficients up to g [s, px, py, ..., g4].
@@ -343,71 +284,164 @@ def project_sphere(density, lattice, center_red, radius):
     dxy, dyz, dz2, dxz, dx2y2 = proj_d(rx - center[0], ry - center[1], rz - center[2], d_sphere)
     fm3, fm2, fm1, f0, f1, f2, f3 = proj_f(rx - center[0], ry - center[1], rz - center[2], d_sphere)
     gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4 = proj_g(rx - center[0], ry - center[1], rz - center[2], d_sphere)
+    hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5 = proj_h(rx - center[0], ry - center[1], rz - center[2], d_sphere)
+    im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6 = proj_i(rx - center[0], ry - center[1], rz - center[2], d_sphere)
 
-    return np.array([s, py, pz, px, dxy, dyz, dz2, dxz, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4])
+    return np.array([s, py, pz, px, dxy, dyz, dz2, dxz, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4, hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5, im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6])
 
 
-# Definition of the multipoles (cubic/tesseral harmonics)
+# # Definition of the multipoles (cubic/tesseral harmonics)
+# def proj_p(rx, ry, rz, f):
+#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+#     px = np.sum(np.sqrt(3) * rx * f / r)
+#     py = np.sum(np.sqrt(3) * ry * f / r)
+#     pz = np.sum(np.sqrt(3) * rz * f / r)
+#     return py, pz, px
+# def proj_d(rx, ry, rz, f):
+#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+#     dz2   = np.sum( (1 / 2 * np.sqrt(5))  * (3 * rz**2 - r**2) * f / r**2)
+#     dxz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rz * rx * f / r**2)
+#     dyz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * ry * rz * f / r**2)
+#     dxy   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rx * ry * f / r**2)
+#     dx2y2 = np.sum( (1 / 2 * np.sqrt(15)) * (rx**2 - ry**2) * f / r**2)
+#     return dxy, dyz, dz2, dxz, dx2y2
+# def proj_f(rx, ry, rz, f):
+#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+#     fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f / r**3)
+#     fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f / r**3)
+#     fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f / r**3)
+#     f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - r**2) * f / r**3)
+#     f1  = np.sum( np.sqrt(21 / 8)  * rx * (5 * rz**2 - r**2) * f / r**3)
+#     f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f / r**3)
+#     f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f / r**3)
+#     return fm3, fm2, fm1, f0, f1, f2, f3
+# def proj_g(rx, ry, rz, f):
+#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+#     gm4 = np.sum( 3 / 2 * np.sqrt(35) * (rx**3 * ry - rx * ry**3) * f / r**4)
+#     gm3 = np.sum( 3 / 4 * np.sqrt(70) * (3 * rx**2 * ry * rz - ry**3 * rz) * f / r**4)
+#     gm2 = np.sum( 3 / 4 * np.sqrt(5)  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f / r**4)
+#     gm1 = np.sum( 3 / 8 * np.sqrt(5)  * (7 * ry * rz**3 - 3 * rz * ry * r**2) * f / r**4)
+#     g0  = np.sum( 3 / 8 * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) * f / r**4)
+#     g1  = np.sum( 3 / 8 * np.sqrt(5)  * (7 * rx * rz**3 - 3 * rz * rx * r**2) * f / r**4)
+#     g2  = np.sum( 3 / 8 * np.sqrt(5)  * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) * f / r**4)
+#     g3  = np.sum( 3 / 4 * np.sqrt(70) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f / r**4)
+#     g4  = np.sum( 3 / 8 * np.sqrt(35) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f / r**4)
+#     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
+# def proj_h(rx, ry, rz, f):
+#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+#     hm5 = np.sum(np.sqrt(693/128) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f / r**5)
+#     hm4 = np.sum(np.sqrt(3465/64) * (4*rx*ry*rz*(rx**2 - ry**2)) * f / r**5)
+#     hm3 = np.sum(np.sqrt(385/128) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f / r**5)
+#     hm2 = np.sum(np.sqrt(1155/16) * (2*rx*ry*rz*(3*rz**2 - r**2)) * f / r**5)
+#     hm1 = np.sum(np.sqrt(165/64)  * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
+#     h0  = np.sum(np.sqrt(11/64)   * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * f / r**5)
+#     h1  = np.sum(np.sqrt(165/64)  * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
+#     h2  = np.sum(np.sqrt(1155/16) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * f / r**5)
+#     h3  = np.sum(np.sqrt(385/128) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f / r**5)
+#     h4  = np.sum(np.sqrt(3465/64) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f / r**5)
+#     h5  = np.sum(np.sqrt(693/128) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f / r**5)
+
+#     return hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5
+# def proj_i(rx, ry, rz, f):
+#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+#     im6 = np.sum(231/32*np.sqrt(26/231) * rx*ry*(6*rx**4 - 20*rx**2*ry**2 + 6*ry**4) * f / r**6)
+#     im5 = np.sum(np.sqrt(9009/128) * ry*rz*(5*rx**4 - 10*rx**2*ry**2 + ry**4) * f / r**6)
+#     im4 = np.sum(21/16*np.sqrt(13/7) * 4*rx*ry*(rx**2 - ry**2)*(11*rz**2 - r**2) * f / r**6)
+#     im3 = np.sum(1/16*np.sqrt(2730) * ry*rz*(3*rx**2-ry**2)*(11*rz**2 - 3*r**2) * f / r**6)
+#     im2 = np.sum(1/32*np.sqrt(2730) * 2*rx*ry*(33*rz**4 - 18*rz**2*r**2 + r**4) * f / r**6)
+#     im1 = np.sum(1/8*np.sqrt(273) * ry*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f / r**6)
+#     i0  = np.sum(1/16*np.sqrt(13) * (231*rz**6 - 315*rz**4*r**2 + 105*rz**2*r**5 - 5*r**6) * f / r**6)
+#     i1  = np.sum(1/8*np.sqrt(273) * rx*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f / r**6)
+#     i2  = np.sum(1/32*np.sqrt(2730) * (rx**2-ry**2)*(33*rz**4 - 18*rz**2*r**2 + r**4) * f / r**6)
+#     i3  = np.sum(1/16*np.sqrt(2730) * rx*rz*(rx**2-3*ry**2)*(11*rz**2 - 3*r**2) * f / r**6)
+#     i4  = np.sum(21/16*np.sqrt(13/7) * (6*rx**2*ry**2 - rx**4 - ry**4)*(11*rz**2 - r**2) * f / r**6)
+#     i5  = np.sum(np.sqrt(9009/128) * rx*rz*(rx**4 - 10*rx**2*ry**2 + 5*ry**4) * f / r**6)
+#     i6  = np.sum(231/32*np.sqrt(26/231) * (rx**6-15*rx**4*ry**2 + 15*rx**2*ry**4 - ry**6) * f / r**6)
+
+#     return im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
+
+
+# Definition of the multipoles (cubic/tesseral harmonics) without radial normalization
 def proj_p(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
 
-    px = np.sum(np.sqrt(3 / (4 * np.pi)) * rx * f / r)
-    py = np.sum(np.sqrt(3 / (4 * np.pi)) * ry * f / r)
-    pz = np.sum(np.sqrt(3 / (4 * np.pi)) * rz * f / r)
+    px = np.sum(np.sqrt(3) * rx * f )
+    py = np.sum(np.sqrt(3) * ry * f )
+    pz = np.sum(np.sqrt(3) * rz * f )
     return py, pz, px
-
 def proj_d(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
 
-    dz2   = np.sum( (1 / 4 * np.sqrt(5 / np.pi))  * (3 * rz**2 - r**2) * f / r**2)
-    dxz   = np.sum( (1 / 2 * np.sqrt(15 / np.pi)) * rz * rx * f / r**2)
-    dyz   = np.sum( (1 / 2 * np.sqrt(15 / np.pi)) * ry * rz * f / r**2)
-    dxy   = np.sum( (1 / 4 * np.sqrt(15 / np.pi)) * 2 * rx * ry * f / r**2)
-    dx2y2 = np.sum( (1 / 4 * np.sqrt(15 / np.pi)) * (rx**2 - ry**2) * f / r**2)
+    dz2   = np.sum( (1 / 2 * np.sqrt(5))  * (3 * rz**2 - r**2) * f )
+    dxz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rz * rx * f )
+    dyz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * ry * rz * f )
+    dxy   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rx * ry * f )
+    dx2y2 = np.sum( (1 / 2 * np.sqrt(15)) * (rx**2 - ry**2) * f )
     return dxy, dyz, dz2, dxz, dx2y2
-
 def proj_f(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
 
-    fm3 = np.sum( np.sqrt(35 / (32 * np.pi))  * (3 * rx**2 * ry - ry**3) * f / r**3)
-    fm2 = np.sum( np.sqrt(105 / (16 * np.pi)) * (2 * rx * ry * rz) * f / r**3)
-    fm1 = np.sum( np.sqrt(21 / (32 * np.pi))  * ry * (5 * rz**2 - r**2) * f / r**3)
-    f0  = np.sum( np.sqrt(7 / (16 * np.pi))   * rz * (5 * rz**2 - r**2) * f / r**3)
-    f1  = np.sum( np.sqrt(21 / (32 * np.pi))  * rx * (5 * rz**2 - r**2) * f / r**3)
-    f2  = np.sum( np.sqrt(105 / (16 * np.pi)) * (rx**2 - ry**2) * rz * f / r**3)
-    f3  = np.sum( np.sqrt(35 / (32 * np.pi))  * (rx**3 - 3 * rx * ry**2) * f / r**3)
+    fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f )
+    fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f )
+    fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f )
+    f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - r**2) * f )
+    f1  = np.sum( np.sqrt(21 / 8)  * rx * (5 * rz**2 - r**2) * f )
+    f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f )
+    f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f )
     return fm3, fm2, fm1, f0, f1, f2, f3
-
 def proj_g(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
 
-    gm4 = np.sum( (3 / 4 * np.sqrt(35 / np.pi))  * (rx**3 * ry - rx * ry**3) * f / r**4)
-    gm3 = np.sum( (3 / 8 * np.sqrt(70 / np.pi))  * (3 * rx**2 * ry * rz - ry**3 * rz) * f / r**4)
-    gm2 = np.sum( (3 / 8 * np.sqrt(5 / np.pi))   * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f / r**4)
-    gm1 = np.sum( (3 / 16 * np.sqrt(5 / np.pi))  * (7 * ry * rz**3 - 3 * rz * ry * r**2) * f / r**4)
-    g0  = np.sum( (3 / 16 * np.sqrt(1 / np.pi))  * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) * f / r**4)
-    g1  = np.sum( (3 / 16 * np.sqrt(5 / np.pi))  * (7 * rx * rz**3 - 3 * rz * rx * r**2) * f / r**4)
-    g2  = np.sum( (3 / 8 * np.sqrt(5 / np.pi))   * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) * f / r**4)
-    g3  = np.sum( (3 / 8 * np.sqrt(70 / np.pi))  * (rx**3 * rz - 3 * rx * ry**2 * rz) * f / r**4)
-    g4  = np.sum( (3 / 16 * np.sqrt(35 / np.pi)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f / r**4)
+    gm4 = np.sum( 3 / 2 * np.sqrt(35) * (rx**3 * ry - rx * ry**3) * f )
+    gm3 = np.sum( 3 / 4 * np.sqrt(70) * (3 * rx**2 * ry * rz - ry**3 * rz) * f )
+    gm2 = np.sum( 3 / 4 * np.sqrt(5)  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f )
+    gm1 = np.sum( 3 / 8 * np.sqrt(5)  * (7 * ry * rz**3 - 3 * rz * ry * r**2) * f )
+    g0  = np.sum( 3 / 8 * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) * f )
+    g1  = np.sum( 3 / 8 * np.sqrt(5)  * (7 * rx * rz**3 - 3 * rz * rx * r**2) * f )
+    g2  = np.sum( 3 / 8 * np.sqrt(5)  * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) * f )
+    g3  = np.sum( 3 / 4 * np.sqrt(70) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f )
+    g4  = np.sum( 3 / 8 * np.sqrt(35) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f )
     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
-
 def proj_h(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
 
-    hm5 = np.sum(np.sqrt(693/(512*np.pi)) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f / r**5)
-    hm4 = np.sum(np.sqrt(3465/(265*np.pi)) * (4*rx*ry*rz*(rx**2 - ry**2)) * f / r**5)
-    hm3 = np.sum(np.sqrt(385/(512*np.pi)) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f / r**5)
-    hm2 = np.sum(np.sqrt(1155/(64*np.pi)) * (2*rx*ry*rz*(3*rz**2 - r**2)) * f / r**5)
-    hm1 = np.sum(np.sqrt(165/(256*np.pi)) * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
-    h0 = np.sum(np.sqrt(11/(256*np.pi)) * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * f / r**5)
-    h1 = np.sum(np.sqrt(165/(256*np.pi)) * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
-    h2 = np.sum(np.sqrt(1155/(64*np.pi)) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * f / r**5)
-    h3 = np.sum(np.sqrt(385/(512*np.pi)) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f / r**5)
-    h4 = np.sum(np.sqrt(3465/(256*np.pi)) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f / r**5)
-    h5 = np.sum(np.sqrt(693/(512*np.pi)) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f / r**5)
+    hm5 = np.sum(np.sqrt(693/128) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f )
+    hm4 = np.sum(np.sqrt(3465/64) * (4*rx*ry*rz*(rx**2 - ry**2)) * f )
+    hm3 = np.sum(np.sqrt(385/128) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f )
+    hm2 = np.sum(np.sqrt(1155/16) * (2*rx*ry*rz*(3*rz**2 - r**2)) * f )
+    hm1 = np.sum(np.sqrt(165/64)  * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f )
+    h0  = np.sum(np.sqrt(11/64)   * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * f )
+    h1  = np.sum(np.sqrt(165/64)  * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f )
+    h2  = np.sum(np.sqrt(1155/16) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * f )
+    h3  = np.sum(np.sqrt(385/128) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f )
+    h4  = np.sum(np.sqrt(3465/64) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f )
+    h5  = np.sum(np.sqrt(693/128) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f )
 
     return hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5
+def proj_i(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+
+    im6 = np.sum(231/32*np.sqrt(26/231) * rx*ry*(6*rx**4 - 20*rx**2*ry**2 + 6*ry**4) * f )
+    im5 = np.sum(np.sqrt(9009/128) * ry*rz*(5*rx**4 - 10*rx**2*ry**2 + ry**4) * f )
+    im4 = np.sum(21/16*np.sqrt(13/7) * 4*rx*ry*(rx**2 - ry**2)*(11*rz**2 - r**2) * f )
+    im3 = np.sum(1/16*np.sqrt(2730) * ry*rz*(3*rx**2-ry**2)*(11*rz**2 - 3*r**2) * f )
+    im2 = np.sum(1/32*np.sqrt(2730) * 2*rx*ry*(33*rz**4 - 18*rz**2*r**2 + r**4) * f )
+    im1 = np.sum(1/8*np.sqrt(273) * ry*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f )
+    i0  = np.sum(1/16*np.sqrt(13) * (231*rz**6 - 315*rz**4*r**2 + 105*rz**2*r**5 - 5*r**6) * f )
+    i1  = np.sum(1/8*np.sqrt(273) * rx*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f )
+    i2  = np.sum(1/32*np.sqrt(2730) * (rx**2-ry**2)*(33*rz**4 - 18*rz**2*r**2 + r**4) * f )
+    i3  = np.sum(1/16*np.sqrt(2730) * rx*rz*(rx**2-3*ry**2)*(11*rz**2 - 3*r**2) * f )
+    i4  = np.sum(21/16*np.sqrt(13/7) * (6*rx**2*ry**2 - rx**4 - ry**4)*(11*rz**2 - r**2) * f )
+    i5  = np.sum(np.sqrt(9009/128) * rx*rz*(rx**4 - 10*rx**2*ry**2 + 5*ry**4) * f )
+    i6  = np.sum(231/32*np.sqrt(26/231) * (rx**6-15*rx**4*ry**2 + 15*rx**2*ry**4 - ry**6) * f )
+
+    return im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
 
 
 def translate_density(f, center_red):
@@ -512,40 +546,6 @@ def generate_xsf_file(scalar_field, lattice, output_file):
         # Write the end of the XSF file
         f.write("  END_DATAGRID_3D\n")
         f.write("END_BLOCK_DATAGRID_3D\n")
-# def generate_xsf_file(scalar_field, lattice, output_file):
-#     """
-#     Generate an XSF file from a scalar field.
-
-#     Parameters:
-#     scalar_field (numpy.ndarray): 3D scalar field array of shape (Nx, Ny, Nz).
-#     lattice (numpy.ndarray): 3x3 matrix where each row is a lattice vector [x, y, z].
-#     output_file (str): Path to the output XSF file.
-#     """
-#     Nx, Ny, Nz = scalar_field.shape
-
-#     # Open the file for writing
-#     with open(output_file, 'w') as f:
-#         # Write the XSF header
-#         f.write("BEGIN_BLOCK_DATAGRID_3D\n")
-#         f.write("  ScalarField\n")
-#         f.write("  BEGIN_DATAGRID_3D_ScalarField\n")
-#         f.write(f"    {Nx} {Ny} {Nz}\n")
-
-#         # Write the origin and spanning vectors
-#         f.write("    0.0 0.0 0.0\n")
-#         for vector in lattice:
-#             f.write(f"    {vector[0]:.19f} {vector[1]:.19f} {vector[2]:.19f}\n")
-
-#         # Write the scalar field values in column-major order
-#         scalar_field = np.transpose(scalar_field, (2, 1, 0)).flatten()
-#         for idx, value in enumerate(scalar_field):
-#             f.write(f"    {value:.19f} ")
-#             if (idx + 1) % Nx == 0:  # Newline every Nx values
-#                 f.write("\n")
-
-#         # Write the end of the XSF file
-#         f.write("  END_DATAGRID_3D\n")
-#         f.write("END_BLOCK_DATAGRID_3D\n")
 
 
 def inverse_project(rx, ry, rz, radius, coeffs):
@@ -569,32 +569,56 @@ def inverse_project(rx, ry, rz, radius, coeffs):
     R = np.exp(-alpha*r)
 
     s     = coeffs[0]  * R
-    py    = coeffs[1]  * np.sqrt(3 / (4 * np.pi)) * ry / r * R
-    pz    = coeffs[2]  * np.sqrt(3 / (4 * np.pi)) * rz / r * R
-    px    = coeffs[3]  * np.sqrt(3 / (4 * np.pi)) * rx / r * R
-    dxy   = coeffs[4]  * (1 / 4 * np.sqrt(15 / np.pi)) * 2 * rx * ry / r**2 * R
-    dyz   = coeffs[5]  * (1 / 2 * np.sqrt(15 / np.pi)) * ry * rz / r**2 * R
-    dz2   = coeffs[6]  * (1 / 4 * np.sqrt(5 / np.pi)) * (3 * rz**2 - r**2) / r**2 * R
-    dxz   = coeffs[7]  * (1 / 2 * np.sqrt(15 / np.pi)) * rz * rx / r**2 * R
-    dx2y2 = coeffs[8]  * (1 / 4 * np.sqrt(15 / np.pi)) * (rx**2 - ry**2) / r**2 * R
-    fm3   = coeffs[9]  * np.sqrt(35 / (32 * np.pi)) * (3 * rx**2 * ry - ry**3) / r**3 * R
-    fm2   = coeffs[10] * np.sqrt(105 / (16 * np.pi)) * (2 * rx * ry * rz) / r**3 * R
-    fm1   = coeffs[11] * np.sqrt(21 / (32 * np.pi)) * ry * (5 * rz**2 - r**2) / r**3 * R
-    f0    = coeffs[12] * np.sqrt(7 / (16 * np.pi)) * rz * (5 * rz**2 - r**2) / r**3 * R
-    f1    = coeffs[13] * np.sqrt(21 / (32 * np.pi)) * rx * (5 * rz**2 - r**2) / r**3 * R
-    f2    = coeffs[14] * np.sqrt(105 / (16 * np.pi)) * (rx**2 - ry**2) * rz / r**3 * R
-    f3    = coeffs[15] * np.sqrt(35 / (32 * np.pi)) * (rx**3 - 3 * rx * ry**2) / r**3 * R
-    gm4   = coeffs[16] * (3 / 4  * np.sqrt(35 / np.pi)) * (rx**3 * ry - rx * ry**3) / r**4 * R
-    gm3   = coeffs[17] * (3 / 8  * np.sqrt(70 / np.pi)) * (3 * rx**2 * ry * rz - ry**3 * rz) / r**4 * R
-    gm2   = coeffs[18] * (3 / 8  * np.sqrt(5 / np.pi))  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) / r**4 * R
-    gm1   = coeffs[19] * (3 / 16 * np.sqrt(5 / np.pi))  * (7 * ry * rz**3 - 3 * rz * ry * r**2) / r**4 * R
-    g0    = coeffs[20] * (3 / 16 * np.sqrt(1 / np.pi))  * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) / r**4 * R
-    g1    = coeffs[21] * (3 / 16 * np.sqrt(5 / np.pi))  * (7 * rx * rz**3 - 3 * rz * rx * r**2) / r**4 * R
-    g2    = coeffs[22] * (3 / 8  * np.sqrt(5 / np.pi))  * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) / r**4 * R
-    g3    = coeffs[23] * (3 / 8  * np.sqrt(70 / np.pi)) * (rx**3 * rz - 3 * rx * ry**2 * rz) / r**4 * R
-    g4    = coeffs[24] * (3 / 16 * np.sqrt(35 / np.pi)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) / r**4 * R
+    py    = coeffs[1]  * np.sqrt(3) * ry / r * R
+    pz    = coeffs[2]  * np.sqrt(3) * rz / r * R
+    px    = coeffs[3]  * np.sqrt(3) * rx / r * R
+    dxy   = coeffs[4]  * (1 / 2 * np.sqrt(15)) * 2 * rx * ry / r**2 * R
+    dyz   = coeffs[5]  * (1 / 2 * np.sqrt(15)) * 2 * ry * rz / r**2 * R
+    dz2   = coeffs[6]  * (1 / 2 * np.sqrt(5))  * (3 * rz**2 - r**2) / r**2 * R
+    dxz   = coeffs[7]  * (1 / 2 * np.sqrt(15)) * 2 * rz * rx / r**2 * R
+    dx2y2 = coeffs[8]  * (1 / 2 * np.sqrt(15)) * (rx**2 - ry**2) / r**2 * R
+    fm3   = coeffs[9]  * np.sqrt(35 / 16) * (3 * rx**2 * ry - ry**3) / r**3 * R
+    fm2   = coeffs[10] * np.sqrt(105 / 4) * (2 * rx * ry * rz) / r**3 * R
+    fm1   = coeffs[11] * np.sqrt(21 / 16) * ry * (5 * rz**2 - r**2) / r**3 * R
+    f0    = coeffs[12] * np.sqrt(7 / 5) * rz * (5 * rz**2 - r**2) / r**3 * R
+    f1    = coeffs[13] * np.sqrt(21 / 16) * rx * (5 * rz**2 - r**2) / r**3 * R
+    f2    = coeffs[14] * np.sqrt(105 / 4) * (rx**2 - ry**2) * rz / r**3 * R
+    f3    = coeffs[15] * np.sqrt(35 / 16) * (rx**3 - 3 * rx * ry**2) / r**3 * R
+    gm4   = coeffs[16] * (3 / 2  * np.sqrt(35)) * (rx**3 * ry - rx * ry**3) / r**4 * R
+    gm3   = coeffs[17] * (3 / 4  * np.sqrt(70)) * (3 * rx**2 * ry * rz - ry**3 * rz) / r**4 * R
+    gm2   = coeffs[18] * (3 / 4  * np.sqrt(5))  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) / r**4 * R
+    gm1   = coeffs[19] * (3 / 8 * np.sqrt(5))  * (7 * ry * rz**3 - 3 * rz * ry * r**2) / r**4 * R
+    g0    = coeffs[20] * 3 / 8 * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) / r**4 * R
+    g1    = coeffs[21] * 3 / 8 * np.sqrt(5)   * (7 * rx * rz**3 - 3 * rz * rx * r**2) / r**4 * R
+    g2    = coeffs[22] * (3 / 4  * np.sqrt(5))  * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) / r**4 * R
+    g3    = coeffs[23] * (3 / 4  * np.sqrt(70)) * (rx**3 * rz - 3 * rx * ry**2 * rz) / r**4 * R
+    g4    = coeffs[24] * (3 / 8 * np.sqrt(35)) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) / r**4 * R
+    hm5   = coeffs[25] * np.sqrt(693/128) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * R / r**5
+    hm4   = coeffs[26] * np.sqrt(3465/64) * (4*rx*ry*rz*(rx**2 - ry**2)) * R / r**5
+    hm3   = coeffs[27] * np.sqrt(385/128) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * R / r**5
+    hm2   = coeffs[28] * np.sqrt(1155/16) * (2*rx*ry*rz*(3*rz**2 - r**2)) * R / r**5
+    hm1   = coeffs[29] * np.sqrt(165/64) * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * R / r**5
+    h0    = coeffs[30] * np.sqrt(11/64) * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * R / r**5
+    h1    = coeffs[31] * np.sqrt(165/64) * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * R / r**5
+    h2    = coeffs[32] * np.sqrt(1155/16) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * R / r**5
+    h3    = coeffs[33] * np.sqrt(385/128) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * R / r**5
+    h4    = coeffs[34] * np.sqrt(3465/64) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * R / r**5
+    h5    = coeffs[35] * np.sqrt(693/128) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * R / r**5
+    im6   = coeffs[36] * 231/32*np.sqrt(26/231) * rx*ry*(6*rx**4 - 20*rx**2*ry**2 + 6*ry**4) * R / r**6
+    im5   = coeffs[37] * np.sqrt(9009/128) * ry*rz*(5*rx**4 - 10*rx**2*ry**2 + ry**4) * R / r**6
+    im4   = coeffs[38] * 21/16*np.sqrt(13/7) * 4*rx*ry*(rx**2 - ry**2)*(11*rz**2 - r**2) * R / r**6
+    im3   = coeffs[39] * 1/16*np.sqrt(2730) * ry*rz*(3*rx**2-ry**2)*(11*rz**2 - 3*r**2) * R / r**6
+    im2   = coeffs[40] * 1/32*np.sqrt(2730) * 2*rx*ry*(33*rz**4 - 18*rz**2*r**2 + r**4) * R / r**6
+    im1   = coeffs[41] * 1/4*np.sqrt(273/4) * ry*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * R / r**6
+    i0    = coeffs[42] * 1/16*np.sqrt(13) * (231*rz**6 - 315*rz**4*r**2 + 105*rz**2*r**5 - 5*r**6) * R / r**6
+    i1    = coeffs[43] * 1/4*np.sqrt(273/4) * rx*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * R / r**6
+    i2    = coeffs[44] * 1/32*np.sqrt(2730) * (rx**2-ry**2)*(33*rz**4 - 18*rz**2*r**2 + r**4) * R / r**6
+    i3    = coeffs[45] * 1/16*np.sqrt(2730) * rx*rz*(rx**2-3*ry**2)*(11*rz**2 - 3*r**2) * R / r**6
+    i4    = coeffs[46] * 21/16*np.sqrt(13/7) * (6*rx**2*ry**2 - rx**4 - ry**4)*(11*rz**2 - r**2) * R / r**6
+    i5    = coeffs[47] * np.sqrt(9009/128) * rx*rz*(rx**4 - 10*rx**2*ry**2 + 5*ry**4) * R / r**6
+    i6    = coeffs[48] * 231/32*np.sqrt(26/231) * (rx**6-15*rx**4*ry**2 + 15*rx**2*ry**4 - ry**6) * R / r**6
 
-    return s, py, pz, px, dxy, dyz, dz2, dxz, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
+    return s, py, pz, px, dxy, dyz, dz2, dxz, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4, hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5, im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
 
 
 def output_analytical_components(lattice, positions, radius, coeffs, filename_prefix, threshold=1e-6):
@@ -616,8 +640,8 @@ def output_analytical_components(lattice, positions, radius, coeffs, filename_pr
     components = {
         "s": None, "p_y": None, "p_z": None, "p_x": None,
         "d_xy": None, "d_yz": None, "d_z^2": None, "d_xz": None, "d_x^2-y^2": None,
-        "f_y(3x^2-y)": None, "f_xyz": None, "f_yz^2": None, "f_z^3": None, "f_xz^2": None, "f_z(x^2-y^2)": None, "f_x(x^2-3y^2)": None,
-        "g_xy(x^2-y^2)": None, "g_yz(3x^2-y)": None, "g_xyz^2": None, "g_yz^3": None, "g_z^4": None, "g_xz^3": None, "g_(x^2-y^2)z^2": None, "g_xz(x^2-3y^2)": None, "g_x^2y^2": None
+        "f_y(3x^2-y^2)": None, "f_xyz": None, "f_yz^2": None, "f_z^3": None, "f_xz^2": None, "f_z(x^2-y^2)": None, "f_x(x^2-3y^2)": None,
+        "g_xy(x^2-y^2)": None, "g_yz(3x^2-y^2)": None, "g_xyz^2": None, "g_yz^3": None, "g_z^4": None, "g_xz^3": None, "g_(x^2-y^2)z^2": None, "g_xz(x^2-3y^2)": None, "g_x^2y^2": None
     }
 
     for key in components.keys():
@@ -637,8 +661,8 @@ def output_analytical_components(lattice, positions, radius, coeffs, filename_pr
     # Compute combined totals
     components["p_tot"] = components["p_y"] + components["p_z"] + components["p_x"]
     components["d_tot"] = components["d_xy"] + components["d_yz"] + components["d_z^2"] + components["d_xz"] + components["d_x^2-y^2"]
-    components["f_tot"] = components["f_y(3x^2-y)"] + components["f_xyz"] + components["f_yz^2"] + components["f_z^3"] + components["f_xz^2"] + components["f_z(x^2-y^2)"] + components["f_x(x^2-3y^2)"]
-    components["g_tot"] = components["g_xy(x^2-y^2)"] + components["g_yz(3x^2-y)"] + components["g_xyz^2"] + components["g_yz^3"] + components["g_z^4"] + components["g_xz^3"] + components["g_(x^2-y^2)z^2"] + components["g_xz(x^2-3y^2)"] + components["g_x^2y^2"]
+    components["f_tot"] = components["f_y(3x^2-y^2)"] + components["f_xyz"] + components["f_yz^2"] + components["f_z^3"] + components["f_xz^2"] + components["f_z(x^2-y^2)"] + components["f_x(x^2-3y^2)"]
+    components["g_tot"] = components["g_xy(x^2-y^2)"] + components["g_yz(3x^2-y^2)"] + components["g_xyz^2"] + components["g_yz^3"] + components["g_z^4"] + components["g_xz^3"] + components["g_(x^2-y^2)z^2"] + components["g_xz(x^2-3y^2)"] + components["g_x^2y^2"]
 
     # Function to check if at least 2 components in a set exceed the threshold (thenit makes sense to print the total)
     def exceeds_threshold(indices):
@@ -783,74 +807,6 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
     return proj
 
 
-# def project_UC_irrep(f, symm, tnons, char_table):
-#     """
-#     Project a charge or spin density onto the irreducible representations 
-#     of the parent space group's primitive cell.
-
-#     This version assumes the distorted structure shares the same unit cell 
-#     as the parent phase (no supercell translations) so the k-point must be
-#     Gamma.
-
-#     Parameters
-#     ----------
-#     f : ndarray
-#         3D array (Nx, Ny, Nz) representing the charge or spin density 
-#         on a real-space grid.
-#     symm : ndarray
-#         Array of shape (N_symm, 3, 3) containing rotation/mirror matrices 
-#         (integer values).
-#     tnons : ndarray
-#         Array of shape (N_symm, 3) containing fractional translations 
-#         associated with each symmetry operation.
-#     char_table : ndarray
-#         1D array of length N_symm giving the character of each symmetry 
-#         operation for the target irrep.
-
-#     Returns
-#     -------
-#     proj : ndarray
-#         3D array (Nx, Ny, Nz) of the projected charge or spin density.
-#     """
-#     grid = f.shape  # Grid dimensions (Nx, Ny, Nz)
-
-#     # Initialize projected density
-#     proj = np.zeros(f.shape)
-
-#     # Loop over all symmetry operations in the parent space group
-#     for s in range(symm.shape[0]):
-#         # Generate grid of integer indices (i, j, k)
-#         i, j, k = np.meshgrid(
-#             np.arange(grid[0]),
-#             np.arange(grid[1]),
-#             np.arange(grid[2]),
-#             indexing='ij'
-#         )
-
-#         # Stack indices into vectors of shape (Nx, Ny, Nz, 3)
-#         v = np.stack((i, j, k), axis=-1)
-
-#         # Apply rotation to grid points
-#         v_new = np.tensordot(v, symm[s], axes=([3], [1])).astype(float)
-
-#         # Apply fractional translation (tnons[s])
-#         v_new += tnons[s] * grid
-
-#         # Wrap indices back into grid range using modulo
-#         i_new = (v_new[..., 0] % grid[0]).astype(int)
-#         j_new = (v_new[..., 1] % grid[1]).astype(int)
-#         k_new = (v_new[..., 2] % grid[2]).astype(int)
-
-#         # Apply projection formula:
-#         # - char_table[s]: character for this symmetry op in the irrep
-#         # - normalization: total number of operations (N_symm)
-#         proj[i, j, k] += np.real(
-#             char_table[s] / symm.shape[0] * f[i_new, j_new, k_new]
-#         )
-
-#     return proj
-
-
 def project_irreps(
     density_file,
     dft_code,
@@ -858,6 +814,44 @@ def project_irreps(
     supercell_size=None, 
     kpoint=None,
 ):
+    """
+    Project real-space density components onto the irreducible representations (irreps)
+    of the little group of a specified k-point.
+
+    This function:
+    1. Loads the density data from a DFT code output.
+    2. Identifies the space group symmetry operations (rotations and translations).
+    3. Determines the little group of the given k-point and its irreps.
+    4. Projects each component of the density onto each irrep.
+    5. Saves the projected densities into `.xsf` files for visualization.
+    6. Writes symmetry information, character tables, and projection weights
+       into an output log file (`.pdout`).
+
+    Parameters
+    ----------
+    density_file : str
+        Path to the density file produced by the DFT calculation.
+    dft_code : str
+        Identifier for the DFT code used (used by `load_density_file` to parse the file).
+    spacegroup : int
+        International or Hall number specifying the space group symmetry.
+    supercell_size : list[int], optional
+        Size of the supercell used for projection in each lattice direction,
+        defaults to [1, 1, 1].
+    kpoint : list[float], optional
+        Target k-point in reciprocal coordinates. Defaults to [0.0, 0.0, 0.0].
+
+    Returns
+    -------
+    - A `.pdout` text file containing:
+        * Lattice vectors
+        * Space group operations
+        * Little group operations
+        * Irrep character tables
+        * Projection weights for each density component
+    - `.xsf` files for each projected component, named
+      `{basename}_{component}_irrep{i}.xsf`.
+    """
     # Handle default parameters
     if kpoint is None:
         kpoint = [0.0, 0.0, 0.0]
@@ -889,7 +883,7 @@ def project_irreps(
     with open(output_file, "w") as f:
 
         # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Angstrom) ===")
+        write("\n=== Lattice vectors (Bohr radii) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
         
@@ -956,6 +950,53 @@ def project_harmonics(
     output_components=False,
     decimals=4,
 ):
+    """
+    Project real-space density components onto tesseral harmonics 
+    (multipole expansion) around a given center within a sphere of radius R.
+
+    This function:
+    1. Loads the density data from a DFT code output.
+    2. Expands the density inside a sphere of radius `radius` centered at 
+       the specified atomic/site position(s).
+    3. Groups the expansion coefficients into s, p, d, f, g, h, and i 
+       harmonics.
+    4. Prints results for each symmetry-equivalent Wyckoff position 
+       (from the specified spacegroup).
+    5. Optionally outputs analytical harmonics into `.xsf` files for 
+       visualization.
+
+    Parameters
+    ----------
+    density_file : str
+        Path to the density file produced by the DFT calculation.
+    dft_code : str
+        Identifier for the DFT code used (parsed by `load_density_file`).
+    center : list[float]
+        Reference position (in fractional coordinates) around which 
+        the spherical expansion is performed.
+    radius : float
+        Radius of the sphere (in Bohr radii) within which the density is projected.
+    spacegroup : int, optional
+        Space group number (default = 1, i.e. P1 symmetry). Used to generate
+        Wyckoff-equivalent positions.
+    output_components : bool, optional
+        If True, writes analytical harmonics for each component into `.xsf` 
+        files for visualization. Default is False.
+    decimals : int, optional
+        Number of decimal places to use when formatting printed results. 
+        Default is 4.
+
+    Returns
+    -------
+    - A `.pdout` text file containing:
+        * Lattice vectors
+        * Wyckoff-equivalent positions
+        * Multipole expansion coefficients for s–i harmonics at each position
+        * Sum over all positions (if multiple sites are present)
+    - `.xsf` files (if `output_components=True`), containing real-space 
+      harmonics for each component of the density.
+    """
+
     lattice, grid, comp_arrays = load_density_file(density_file, dft_code)
     input_basename = get_output_basename()
     output_file = input_basename + ".pdout"
@@ -964,36 +1005,52 @@ def project_harmonics(
     positions = np.round(wyckoff(center, spacegroup), 5)
 
     # formatting settings
-    FIELD_WIDTH = 12
-    NUM_FMT = f"{{:{FIELD_WIDTH}.{decimals}f}}"
-    LABEL_FMT = f"{{:<{FIELD_WIDTH}}}"
+    LABEL_FIELD_WIDTH = 3    # narrower for "s", "p", "d", ...
+    VALUE_FIELD_WIDTH = 14   # enough space for numbers and multipole names
+
+    NUM_FMT = f"{{:{VALUE_FIELD_WIDTH}.{decimals}f}}"
+    LABEL_FMT = f"{{:<{LABEL_FIELD_WIDTH}}}"
 
     def fmt(v):
         return NUM_FMT.format(v)
 
+    def print_block(label, arr, labels_list):
+        # header row
+        write(
+            LABEL_FMT.format(label)
+            + " | ".join(f"{lab:>{VALUE_FIELD_WIDTH}}" for lab in labels_list)
+        )
+        # value row
+        write(
+            LABEL_FMT.format(label)
+            + " | ".join(fmt(v) for v in arr)
+        )
+
+
     # labels for each multipole
     MULTIPOLE_LABELS = {
-        "s": ["s"],
-        "p": ["y", "z", "x"],
-        "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
-        "f": ["y(3x^2-y)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
-        "g": ["xy(x^2-y^2)", "yz(3x^2-y)", "xyz^2", "yz^3", "z^4", "xz^3",
-              "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"]
+    "s": ["s"],
+    "p": ["y", "z", "x"],
+    "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
+    "f": ["y(3x^2-y^2)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
+    "g": ["xy(x^2-y^2)", "yz(3x^2-y^2)", "xyz^2", "yz^3", "z^4", "xz^3",
+          "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"],
+    "h": ["x^2y^3", "xyz(x^2-y^2)", "yz^2(3x^2-y^2)", "xyz^3", "yz^4", "z^5",
+          "xz^4", "(x^2-y^2)z^3", "xz^2(x^2-3y^2)", "x^2y^2z", "x^3y^2"],
+    "i": ["x^3y^3", "x^2y^3z", "xy(x^2-y^2)z^2", "yz^3(3x^2-y^2)", "xyz^4", "yz^5",
+          "z^6", "xz^5", "(x^2-y^2)z^4", "xz^3(x^2-3y^2)", "x^2y^2z^2",
+          "x^3y^2z", "x^2y^2(x^2-y^2)"]
     }
 
     # helper function to print to screen and file
     def write(msg):
         print(msg)
-        f.write(msg + "\n")
-
-    def print_block(label, arr, labels_list):
-        write(LABEL_FMT.format(label) + " | ".join(f"{lab:>{FIELD_WIDTH}}" for lab in labels_list))
-        write(LABEL_FMT.format(label) + " | ".join(fmt(v) for v in arr))
+        f.write(msg + "\n")        
 
     with open(output_file, "w") as f:
 
         # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Angstrom) ===")
+        write("\n=== Lattice vectors (Bohr radii) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
 
@@ -1012,19 +1069,23 @@ def project_harmonics(
                 coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
                 coeffs_list.append(coeffs_row)
 
-                s = coeffs_row[0:1]
-                p = coeffs_row[1:4]
-                d = coeffs_row[4:9]
-                f_arr = coeffs_row[9:16]
-                g_arr = coeffs_row[16:25]
+                s_coeff = coeffs_row[0:1]
+                p_coeff = coeffs_row[1:4]
+                d_coeff = coeffs_row[4:9]
+                f_coeff = coeffs_row[9:16]
+                g_coeff = coeffs_row[16:25]
+                h_coeff = coeffs_row[25:36]
+                i_coeff = coeffs_row[36:49]
 
                 write(f"Position {idx+1}: {pos}")
                 write("-" * 145)
-                print_block("s", s, MULTIPOLE_LABELS["s"])
-                print_block("p", p, MULTIPOLE_LABELS["p"])
-                print_block("d", d, MULTIPOLE_LABELS["d"])
-                print_block("f", f_arr, MULTIPOLE_LABELS["f"])
-                print_block("g", g_arr, MULTIPOLE_LABELS["g"])
+                print_block("s", s_coeff, MULTIPOLE_LABELS["s"])
+                print_block("p", p_coeff, MULTIPOLE_LABELS["p"])
+                print_block("d", d_coeff, MULTIPOLE_LABELS["d"])
+                print_block("f", f_coeff, MULTIPOLE_LABELS["f"])
+                print_block("g", g_coeff, MULTIPOLE_LABELS["g"])
+                print_block("h", h_coeff, MULTIPOLE_LABELS["h"])
+                print_block("i", i_coeff, MULTIPOLE_LABELS["i"])
                 write("-" * 145 + "\n")
 
             coeffs = np.array(coeffs_list)
@@ -1039,6 +1100,8 @@ def project_harmonics(
                 print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
                 print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
                 print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
+                print_block("h", sum_coeffs[25:36], MULTIPOLE_LABELS["h"])
+                print_block("i", sum_coeffs[36:49], MULTIPOLE_LABELS["i"])
                 write("-" * 145 + "\n")
 
             if output_components:
