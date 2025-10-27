@@ -243,7 +243,7 @@ def real_space_grid(lattice, Nx, Ny, Nz):
     return rx, ry, rz
 
 
-def project_sphere(density, lattice, center_red, radius):
+def project_sphere(density, lattice, center_red, radius, units="multi"):
     """
     Calculate the atomic multipole projections of a density onto cubic/tesseral harmonics inside a sphere.
 
@@ -251,32 +251,43 @@ def project_sphere(density, lattice, center_red, radius):
     density (numpy.ndarray): 3D array of the density.
     lattice (numpy.ndarray): 3x3 array of lattice vectors.
     center_red (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
-    radius (double): radius of the sphere centered at the atom, in atomic (Bohr radii) units.
+    radius (float): Radius of the sphere centered at the atom, in atomic (Bohr radii) units.
+    units (str): Specifies the unit system for the projection.
+        - "multi": Uses multipolar units, expressed as |e|*a0^l for charge densities
+          or \mu_B*a0^l for magnetization densities, where a0 is the Bohr radius,
+          |e| is the elementary charge, and \mu_B is the Bohr magneton.
+          These units correspond to multipole moments of order l.
+        - "charge": Uses normalized units, i.e., |e| for charge
+          and \mu_B for magnetic moments, corresponding to using the standard definition of
+          the tesseral harmonics normalized by the radial distance.
 
     Returns:
-    numpy.ndarray: Array of atomic multipole projection coefficients up to g [s, px, py, ..., g4].
+    numpy.ndarray: Array of atomic multipole projection coefficients up to i [s, p, d, f, g, h, i].
     """
 
-    # Shift the density so that the atomic center is at the center of the unit cell, 
-    # ensures that the enitre sphere is contained in the unit cell (as long as the radius is reasonable)
+    # Shift density so the atomic center is at the center of the unit cell
     density, center_red = translate_density(density, center_red)
 
-    # Convert center from reduced coordinated to cartesian
+    # Convert center from reduced to cartesian coordinates
     center = np.dot(center_red, lattice)
 
-    # Lattice parameters and real-space grid
-    a1, a2, a3 = np.linalg.norm(lattice, axis=0)
+    # Lattice and real-space grid
     ng1, ng2, ng3 = density.shape
     rx, ry, rz = real_space_grid(lattice, ng1, ng2, ng3)
     r = np.sqrt(rx**2 + ry**2 + rz**2)
-    
-    # Total density check (for debugging)
-    # print(f"Total charge check: {np.sum(density)}")
-    
-    # Sphere - step function definition
+
+    # Define sphere region
     sphere = np.sqrt((rx - center[0])**2 + (ry - center[1])**2 + (rz - center[2])**2) < radius
     d_sphere = np.copy(density)
     d_sphere[~sphere] = 0
+
+    # Select projection functions
+    if units == "multi":
+        proj_p, proj_d, proj_f, proj_g, proj_h, proj_i = proj_p1, proj_d1, proj_f1, proj_g1, proj_h1, proj_i1
+    elif units == "charge":
+        proj_p, proj_d, proj_f, proj_g, proj_h, proj_i = proj_p2, proj_d2, proj_f2, proj_g2, proj_h2, proj_i2
+    else:
+        raise ValueError("Invalid units flag. Must be 'multi' or 'charge'.")
 
     # Calculate multipoles
     s = np.sum(d_sphere)
@@ -287,106 +298,103 @@ def project_sphere(density, lattice, center_red, radius):
     hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5 = proj_h(rx - center[0], ry - center[1], rz - center[2], d_sphere)
     im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6 = proj_i(rx - center[0], ry - center[1], rz - center[2], d_sphere)
 
-    return np.array([s, py, pz, px, dxy, dyz, dz2, dxz, dx2y2, fm3, fm2, fm1, f0, f1, f2, f3, gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4, hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5, im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6])
+    return np.array([
+        s,
+        py, pz, px,
+        dxy, dyz, dz2, dxz, dx2y2,
+        fm3, fm2, fm1, f0, f1, f2, f3,
+        gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4,
+        hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5,
+        im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
+    ])
 
 
-# # Definition of the multipoles (cubic/tesseral harmonics)
-# def proj_p(rx, ry, rz, f):
-#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
-#     px = np.sum(np.sqrt(3) * rx * f / r)
-#     py = np.sum(np.sqrt(3) * ry * f / r)
-#     pz = np.sum(np.sqrt(3) * rz * f / r)
-#     return py, pz, px
-# def proj_d(rx, ry, rz, f):
-#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
-#     dz2   = np.sum( (1 / 2 * np.sqrt(5))  * (3 * rz**2 - r**2) * f / r**2)
-#     dxz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rz * rx * f / r**2)
-#     dyz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * ry * rz * f / r**2)
-#     dxy   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rx * ry * f / r**2)
-#     dx2y2 = np.sum( (1 / 2 * np.sqrt(15)) * (rx**2 - ry**2) * f / r**2)
-#     return dxy, dyz, dz2, dxz, dx2y2
-# def proj_f(rx, ry, rz, f):
-#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
-#     fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f / r**3)
-#     fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f / r**3)
-#     fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f / r**3)
-#     f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - r**2) * f / r**3)
-#     f1  = np.sum( np.sqrt(21 / 8)  * rx * (5 * rz**2 - r**2) * f / r**3)
-#     f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f / r**3)
-#     f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f / r**3)
-#     return fm3, fm2, fm1, f0, f1, f2, f3
-# def proj_g(rx, ry, rz, f):
-#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
-#     gm4 = np.sum( 3 / 2 * np.sqrt(35) * (rx**3 * ry - rx * ry**3) * f / r**4)
-#     gm3 = np.sum( 3 / 4 * np.sqrt(70) * (3 * rx**2 * ry * rz - ry**3 * rz) * f / r**4)
-#     gm2 = np.sum( 3 / 4 * np.sqrt(5)  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f / r**4)
-#     gm1 = np.sum( 3 / 8 * np.sqrt(5)  * (7 * ry * rz**3 - 3 * rz * ry * r**2) * f / r**4)
-#     g0  = np.sum( 3 / 8 * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) * f / r**4)
-#     g1  = np.sum( 3 / 8 * np.sqrt(5)  * (7 * rx * rz**3 - 3 * rz * rx * r**2) * f / r**4)
-#     g2  = np.sum( 3 / 8 * np.sqrt(5)  * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) * f / r**4)
-#     g3  = np.sum( 3 / 4 * np.sqrt(70) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f / r**4)
-#     g4  = np.sum( 3 / 8 * np.sqrt(35) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f / r**4)
-#     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
-# def proj_h(rx, ry, rz, f):
-#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
-#     hm5 = np.sum(np.sqrt(693/128) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f / r**5)
-#     hm4 = np.sum(np.sqrt(3465/64) * (4*rx*ry*rz*(rx**2 - ry**2)) * f / r**5)
-#     hm3 = np.sum(np.sqrt(385/128) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f / r**5)
-#     hm2 = np.sum(np.sqrt(1155/16) * (2*rx*ry*rz*(3*rz**2 - r**2)) * f / r**5)
-#     hm1 = np.sum(np.sqrt(165/64)  * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
-#     h0  = np.sum(np.sqrt(11/64)   * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * f / r**5)
-#     h1  = np.sum(np.sqrt(165/64)  * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
-#     h2  = np.sum(np.sqrt(1155/16) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * f / r**5)
-#     h3  = np.sum(np.sqrt(385/128) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f / r**5)
-#     h4  = np.sum(np.sqrt(3465/64) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f / r**5)
-#     h5  = np.sum(np.sqrt(693/128) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f / r**5)
-
-#     return hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5
-# def proj_i(rx, ry, rz, f):
-#     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
-#     im6 = np.sum(231/32*np.sqrt(26/231) * rx*ry*(6*rx**4 - 20*rx**2*ry**2 + 6*ry**4) * f / r**6)
-#     im5 = np.sum(np.sqrt(9009/128) * ry*rz*(5*rx**4 - 10*rx**2*ry**2 + ry**4) * f / r**6)
-#     im4 = np.sum(21/16*np.sqrt(13/7) * 4*rx*ry*(rx**2 - ry**2)*(11*rz**2 - r**2) * f / r**6)
-#     im3 = np.sum(1/16*np.sqrt(2730) * ry*rz*(3*rx**2-ry**2)*(11*rz**2 - 3*r**2) * f / r**6)
-#     im2 = np.sum(1/32*np.sqrt(2730) * 2*rx*ry*(33*rz**4 - 18*rz**2*r**2 + r**4) * f / r**6)
-#     im1 = np.sum(1/8*np.sqrt(273) * ry*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f / r**6)
-#     i0  = np.sum(1/16*np.sqrt(13) * (231*rz**6 - 315*rz**4*r**2 + 105*rz**2*r**5 - 5*r**6) * f / r**6)
-#     i1  = np.sum(1/8*np.sqrt(273) * rx*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f / r**6)
-#     i2  = np.sum(1/32*np.sqrt(2730) * (rx**2-ry**2)*(33*rz**4 - 18*rz**2*r**2 + r**4) * f / r**6)
-#     i3  = np.sum(1/16*np.sqrt(2730) * rx*rz*(rx**2-3*ry**2)*(11*rz**2 - 3*r**2) * f / r**6)
-#     i4  = np.sum(21/16*np.sqrt(13/7) * (6*rx**2*ry**2 - rx**4 - ry**4)*(11*rz**2 - r**2) * f / r**6)
-#     i5  = np.sum(np.sqrt(9009/128) * rx*rz*(rx**4 - 10*rx**2*ry**2 + 5*ry**4) * f / r**6)
-#     i6  = np.sum(231/32*np.sqrt(26/231) * (rx**6-15*rx**4*ry**2 + 15*rx**2*ry**4 - ry**6) * f / r**6)
-
-#     return im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
-
-
-# Definition of the multipoles (cubic/tesseral harmonics) without radial normalization
-def proj_p(rx, ry, rz, f):
+# Definition of the cubic/tesseral harmonics
+def proj_p2(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+    px = np.sum(np.sqrt(3) * rx * f / r)
+    py = np.sum(np.sqrt(3) * ry * f / r)
+    pz = np.sum(np.sqrt(3) * rz * f / r)
+    return py, pz, px
+def proj_d2(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+    dz2   = np.sum( (1 / 2 * np.sqrt(5))  * (3 * rz**2 - r**2) * f / r**2)
+    dxz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rz * rx * f / r**2)
+    dyz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * ry * rz * f / r**2)
+    dxy   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rx * ry * f / r**2)
+    dx2y2 = np.sum( (1 / 2 * np.sqrt(15)) * (rx**2 - ry**2) * f / r**2)
+    return dxy, dyz, dz2, dxz, dx2y2
+def proj_f2(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+    fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f / r**3)
+    fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f / r**3)
+    fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f / r**3)
+    f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - r**2) * f / r**3)
+    f1  = np.sum( np.sqrt(21 / 8)  * rx * (5 * rz**2 - r**2) * f / r**3)
+    f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f / r**3)
+    f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f / r**3)
+    return fm3, fm2, fm1, f0, f1, f2, f3
+def proj_g2(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+    gm4 = np.sum( 3 / 2 * np.sqrt(35) * (rx**3 * ry - rx * ry**3) * f / r**4)
+    gm3 = np.sum( 3 / 4 * np.sqrt(70) * (3 * rx**2 * ry * rz - ry**3 * rz) * f / r**4)
+    gm2 = np.sum( 3 / 4 * np.sqrt(5)  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f / r**4)
+    gm1 = np.sum( 3 / 8 * np.sqrt(5)  * (7 * ry * rz**3 - 3 * rz * ry * r**2) * f / r**4)
+    g0  = np.sum( 3 / 8 * (35 * rz**4 - 30 * rz**2 * r**2 + 3 * r**4) * f / r**4)
+    g1  = np.sum( 3 / 8 * np.sqrt(5)  * (7 * rx * rz**3 - 3 * rz * rx * r**2) * f / r**4)
+    g2  = np.sum( 3 / 8 * np.sqrt(5)  * ((rx**2 - ry**2) * (7 * rz**2 - r**2)) * f / r**4)
+    g3  = np.sum( 3 / 4 * np.sqrt(70) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f / r**4)
+    g4  = np.sum( 3 / 8 * np.sqrt(35) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f / r**4)
+    return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
+def proj_h2(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+    hm5 = np.sum(np.sqrt(693/128) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f / r**5)
+    hm4 = np.sum(np.sqrt(3465/64) * (4*rx*ry*rz*(rx**2 - ry**2)) * f / r**5)
+    hm3 = np.sum(np.sqrt(385/128) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f / r**5)
+    hm2 = np.sum(np.sqrt(1155/16) * (2*rx*ry*rz*(3*rz**2 - r**2)) * f / r**5)
+    hm1 = np.sum(np.sqrt(165/64)  * (ry*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
+    h0  = np.sum(np.sqrt(11/64)   * (rz*(63*rz**4 - 70*rz**2*r**2 + 15*r**4)) * f / r**5)
+    h1  = np.sum(np.sqrt(165/64)  * (rx*(21*rz**4 - 14*rz**2*r**2 + r**4)) * f / r**5)
+    h2  = np.sum(np.sqrt(1155/16) * ((rx**2 - ry**2)*rz*(3*rz**2 - r**2)) * f / r**5)
+    h3  = np.sum(np.sqrt(385/128) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f / r**5)
+    h4  = np.sum(np.sqrt(3465/64) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f / r**5)
+    h5  = np.sum(np.sqrt(693/128) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f / r**5)
+    return hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5
+def proj_i2(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
+    im6 = np.sum(231/32*np.sqrt(26/231) * rx*ry*(6*rx**4 - 20*rx**2*ry**2 + 6*ry**4) * f / r**6)
+    im5 = np.sum(np.sqrt(9009/128) * ry*rz*(5*rx**4 - 10*rx**2*ry**2 + ry**4) * f / r**6)
+    im4 = np.sum(21/16*np.sqrt(13/7) * 4*rx*ry*(rx**2 - ry**2)*(11*rz**2 - r**2) * f / r**6)
+    im3 = np.sum(1/16*np.sqrt(2730) * ry*rz*(3*rx**2-ry**2)*(11*rz**2 - 3*r**2) * f / r**6)
+    im2 = np.sum(1/32*np.sqrt(2730) * 2*rx*ry*(33*rz**4 - 18*rz**2*r**2 + r**4) * f / r**6)
+    im1 = np.sum(1/8*np.sqrt(273) * ry*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f / r**6)
+    i0  = np.sum(1/16*np.sqrt(13) * (231*rz**6 - 315*rz**4*r**2 + 105*rz**2*r**5 - 5*r**6) * f / r**6)
+    i1  = np.sum(1/8*np.sqrt(273) * rx*rz*(33*rz**4 - 30*rz**2*r**2 + 5*r**4) * f / r**6)
+    i2  = np.sum(1/32*np.sqrt(2730) * (rx**2-ry**2)*(33*rz**4 - 18*rz**2*r**2 + r**4) * f / r**6)
+    i3  = np.sum(1/16*np.sqrt(2730) * rx*rz*(rx**2-3*ry**2)*(11*rz**2 - 3*r**2) * f / r**6)
+    i4  = np.sum(21/16*np.sqrt(13/7) * (6*rx**2*ry**2 - rx**4 - ry**4)*(11*rz**2 - r**2) * f / r**6)
+    i5  = np.sum(np.sqrt(9009/128) * rx*rz*(rx**4 - 10*rx**2*ry**2 + 5*ry**4) * f / r**6)
+    i6  = np.sum(231/32*np.sqrt(26/231) * (rx**6-15*rx**4*ry**2 + 15*rx**2*ry**4 - ry**6) * f / r**6)
+    return im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
 
+
+# Definition of the cubic/tesseral harmonics without radial normalization
+def proj_p1(rx, ry, rz, f):
+    r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
     px = np.sum(np.sqrt(3) * rx * f )
     py = np.sum(np.sqrt(3) * ry * f )
     pz = np.sum(np.sqrt(3) * rz * f )
     return py, pz, px
-def proj_d(rx, ry, rz, f):
+def proj_d1(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
     dz2   = np.sum( (1 / 2 * np.sqrt(5))  * (3 * rz**2 - r**2) * f )
     dxz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rz * rx * f )
     dyz   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * ry * rz * f )
     dxy   = np.sum( (1 / 2 * np.sqrt(15)) * 2 * rx * ry * f )
     dx2y2 = np.sum( (1 / 2 * np.sqrt(15)) * (rx**2 - ry**2) * f )
     return dxy, dyz, dz2, dxz, dx2y2
-def proj_f(rx, ry, rz, f):
+def proj_f1(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
     fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f )
     fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f )
     fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f )
@@ -395,9 +403,8 @@ def proj_f(rx, ry, rz, f):
     f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f )
     f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f )
     return fm3, fm2, fm1, f0, f1, f2, f3
-def proj_g(rx, ry, rz, f):
+def proj_g1(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
     gm4 = np.sum( 3 / 2 * np.sqrt(35) * (rx**3 * ry - rx * ry**3) * f )
     gm3 = np.sum( 3 / 4 * np.sqrt(70) * (3 * rx**2 * ry * rz - ry**3 * rz) * f )
     gm2 = np.sum( 3 / 4 * np.sqrt(5)  * (14 * rx * ry * rz**2 - 2 * rx * ry * r**2) * f )
@@ -408,9 +415,8 @@ def proj_g(rx, ry, rz, f):
     g3  = np.sum( 3 / 4 * np.sqrt(70) * (rx**3 * rz - 3 * rx * ry**2 * rz) * f )
     g4  = np.sum( 3 / 8 * np.sqrt(35) * (rx**4 + ry**4 - 6 * rx**2 * ry**2) * f )
     return gm4, gm3, gm2, gm1, g0, g1, g2, g3, g4
-def proj_h(rx, ry, rz, f):
+def proj_h1(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
     hm5 = np.sum(np.sqrt(693/128) * (ry*(5*rx**4 - 10*rx**2*ry**2 + ry**4)) * f )
     hm4 = np.sum(np.sqrt(3465/64) * (4*rx*ry*rz*(rx**2 - ry**2)) * f )
     hm3 = np.sum(np.sqrt(385/128) * (ry*(3*rx**2 - ry**2)*(9*rz**2 - r**2)) * f )
@@ -422,11 +428,9 @@ def proj_h(rx, ry, rz, f):
     h3  = np.sum(np.sqrt(385/128) * (rx*(rx**2 - 3*ry**2)*(9*rz**2 - r**2)) * f )
     h4  = np.sum(np.sqrt(3465/64) * (rz*(rx**4 - 6*rx**2*ry**2 + ry**4)) * f )
     h5  = np.sum(np.sqrt(693/128) * (rx*(rx**4 - 10*rx**2*ry**2 + 5*ry**4)) * f )
-
     return hm5, hm4, hm3, hm2, hm1, h0, h1, h2, h3, h4, h5
-def proj_i(rx, ry, rz, f):
+def proj_i1(rx, ry, rz, f):
     r = np.sqrt(rx**2 + ry**2 + rz**2) + 1e-30
-
     im6 = np.sum(231/32*np.sqrt(26/231) * rx*ry*(6*rx**4 - 20*rx**2*ry**2 + 6*ry**4) * f )
     im5 = np.sum(np.sqrt(9009/128) * ry*rz*(5*rx**4 - 10*rx**2*ry**2 + ry**4) * f )
     im4 = np.sum(21/16*np.sqrt(13/7) * 4*rx*ry*(rx**2 - ry**2)*(11*rz**2 - r**2) * f )
@@ -440,7 +444,6 @@ def proj_i(rx, ry, rz, f):
     i4  = np.sum(21/16*np.sqrt(13/7) * (6*rx**2*ry**2 - rx**4 - ry**4)*(11*rz**2 - r**2) * f )
     i5  = np.sum(np.sqrt(9009/128) * rx*rz*(rx**4 - 10*rx**2*ry**2 + 5*ry**4) * f )
     i6  = np.sum(231/32*np.sqrt(26/231) * (rx**6-15*rx**4*ry**2 + 15*rx**2*ry**4 - ry**6) * f )
-
     return im6, im5, im4, im3, im2, im1, i0, i1, i2, i3, i4, i5, i6
 
 
@@ -949,6 +952,7 @@ def project_harmonics(
     spacegroup=1,
     output_components=False,
     decimals=4,
+    units="multi"
 ):
     """
     Project real-space density components onto tesseral harmonics 
@@ -1066,7 +1070,7 @@ def project_harmonics(
             write(f"\n=== Projections for component: {comp} ===\n")
 
             for idx, pos in enumerate(positions):
-                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius)
+                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius, units)
                 coeffs_list.append(coeffs_row)
 
                 s_coeff = coeffs_row[0:1]
