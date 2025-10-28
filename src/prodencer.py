@@ -329,7 +329,7 @@ def proj_f2(rx, ry, rz, f):
     fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f / r**3)
     fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f / r**3)
     fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f / r**3)
-    f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - r**2) * f / r**3)
+    f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - 3 * r**2) * f / r**3)
     f1  = np.sum( np.sqrt(21 / 8)  * rx * (5 * rz**2 - r**2) * f / r**3)
     f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f / r**3)
     f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f / r**3)
@@ -398,7 +398,7 @@ def proj_f1(rx, ry, rz, f):
     fm3 = np.sum( np.sqrt(35 / 8)  * (3 * rx**2 * ry - ry**3) * f )
     fm2 = np.sum( np.sqrt(105 / 4) * (2 * rx * ry * rz) * f )
     fm1 = np.sum( np.sqrt(21 / 8)  * ry * (5 * rz**2 - r**2) * f )
-    f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - r**2) * f )
+    f0  = np.sum( np.sqrt(7 / 4)   * rz * (5 * rz**2 - 3 * r**2) * f )
     f1  = np.sum( np.sqrt(21 / 8)  * rx * (5 * rz**2 - r**2) * f )
     f2  = np.sum( np.sqrt(105 / 4) * (rx**2 - ry**2) * rz * f )
     f3  = np.sum( np.sqrt(35 / 8)  * (rx**3 - 3 * rx * ry**2) * f )
@@ -583,7 +583,7 @@ def inverse_project(rx, ry, rz, radius, coeffs):
     fm3   = coeffs[9]  * np.sqrt(35 / 16) * (3 * rx**2 * ry - ry**3) / r**3 * R
     fm2   = coeffs[10] * np.sqrt(105 / 4) * (2 * rx * ry * rz) / r**3 * R
     fm1   = coeffs[11] * np.sqrt(21 / 16) * ry * (5 * rz**2 - r**2) / r**3 * R
-    f0    = coeffs[12] * np.sqrt(7 / 5) * rz * (5 * rz**2 - r**2) / r**3 * R
+    f0    = coeffs[12] * np.sqrt(7 / 5) * rz * (5 * rz**2 - 3 * r**2) / r**3 * R
     f1    = coeffs[13] * np.sqrt(21 / 16) * rx * (5 * rz**2 - r**2) / r**3 * R
     f2    = coeffs[14] * np.sqrt(105 / 4) * (rx**2 - ry**2) * rz / r**3 * R
     f3    = coeffs[15] * np.sqrt(35 / 16) * (rx**3 - 3 * rx * ry**2) / r**3 * R
