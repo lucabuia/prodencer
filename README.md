@@ -23,6 +23,17 @@ The code contains several useful functions, but the **two main, high level funct
 
 ---
 
+## Installation
+
+1. Clone this repository.
+2. Move into the project’s root directory (the one containing `pyproject.toml`).
+3. Install the package in editable mode:
+
+```bash
+pip install -e .
+
+---
+
 ##
 2025 – Luca Buiarelli, Hyeonseo Park, Seongjoo Jung and Turan Birol  
 University of Minnesota, CEMS
