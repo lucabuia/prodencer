@@ -31,7 +31,7 @@ The code contains several useful functions, but the **two main, high level funct
 
 ```bash
 pip install -e .
-'''
+```
 
 ---
 
