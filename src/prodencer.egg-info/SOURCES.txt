@@ -3,4 +3,5 @@ pyproject.toml
 src/prodencer.egg-info/PKG-INFO
 src/prodencer.egg-info/SOURCES.txt
 src/prodencer.egg-info/dependency_links.txt
+src/prodencer.egg-info/requires.txt
 src/prodencer.egg-info/top_level.txt

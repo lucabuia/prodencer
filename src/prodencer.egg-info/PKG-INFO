@@ -3,14 +3,42 @@ Name: prodencer
 Version: 0.0.1
 Summary: Project charge/spin Densities onto Cubic/tesseral harmonics and point-group Representations.
 Author: Luca Buiarelli
-License: MIT
+License: CC0
+Project-URL: homepage, https://github.com/lucabuia/prodencer
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: spglib
+Requires-Dist: spgrep
+Requires-Dist: netCDF4
 
-# Multipole project
+# ProDenCeR
 
-<img src="Logo.png" alt="ProDenCeR logo" width="250"/>
+**Pro**ject **Den**sities onto **C**ubic/tesseral harmonics & **R**epresentations of space/point groups
 
-Multipole projection code in Python for projecting charge/spin densities from VASP and Abinit:
-1) In spheres around atoms onto the atomic multipoles (tesseral harmonics);
-2) In the entire unit cell onto the irreducible representation of the space groups (through spglib).
+<p align="center">
+  <img src="Logo.png" alt="ProDenCeR logo" width="350"/>
+</p>
+
+ProDenCeR is a **Python package** to project **charge** and **spin densities** from *VASP* and *Abinit*.  
+
+---
+
+## Key Features
+The code contains several useful functions, but the **two main, high level functions** are:
+
+1. **`project_harmonics`**  
+   Projects the charge/spin density inside spheres around atoms onto **atomic multipoles** (cubic/tesseral harmonics).  
+   *Example:* In *d-wave altermagnetic MnF₂*, the magnetic dipoles *Mz* are out of phase, but the magnetic octupoles *xyMz* are in phase.
+
+2. **`project_irreps`**  
+   Projects the charge/spin density of a **distorted cell** (either primitive or supercell) onto the **irreducible representations** of the parent space group at any commensurate k-point (via `spglib` and `spgrep`).  
+   *Example:* In ferroelectric BaTiO3, the primary order parameter transforms as the \Gamma_4^- irrep of m-3m, which looks like a charge-dipole on the Ti ion.
+
+---
+
+##
+2025 – Luca Buiarelli, Hyeonseo Park, Seongjoo Jung and Turan Birol  
+University of Minnesota, CEMS
