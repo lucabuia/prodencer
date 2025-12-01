@@ -15,7 +15,7 @@ The code contains several useful functions, but the **two main, high level funct
 
 1. **`project_harmonics`**  
    Projects the charge/spin density inside spheres around atoms onto **atomic multipoles** (cubic/tesseral harmonics).  
-   *Example:* In d-wave altermagnetic MnF$_2$, the magnetic dipoles $M_z$ are out of phase, but the magnetic octupoles $xyM_z$ are in phase.
+   *Example:* In d-wave altermagnetic ${\rm MnF}_2$, the magnetic dipoles $M_z$ are out of phase, but the magnetic octupoles $xyM_z$ are in phase.
 
 2. **`project_irreps`**  
    Projects the charge/spin density of a **distorted cell** (either primitive or supercell) onto the **irreducible representations** of the parent space group at any commensurate k-point (via `spglib` and `spgrep`).  
