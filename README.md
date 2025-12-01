@@ -19,7 +19,7 @@ The code contains several useful functions, but the **two main, high level funct
 
 2. **`project_irreps`**  
    Projects the charge/spin density of a **distorted cell** (either primitive or supercell) onto the **irreducible representations** of the parent space group at any commensurate k-point (via `spglib` and `spgrep`).  
-   *Example:* In ferroelectric BaTiO$_3$, the primary order parameter transforms as the $\Gamma_4^-$ irrep of $m\bar{3}m$, which looks like a charge-dipole on the Ti ion.
+   *Example:* In ferroelectric ${\rm BaTiO}_3$, the primary order parameter transforms as the $\Gamma_4^-$ irrep of $m\bar{3}m$, which looks like a charge-dipole on the Ti ion.
 
 ---
 
