@@ -36,5 +36,5 @@ pip install -e .
 ---
 
 ##
-2025 – Luca Buiarelli, Hyeonseo Park, Seongjoo Jung and Turan Birol  
+2025 – Luca Buiarelli, Seongjoo Jung, Hyeonseo Park and Turan Birol  
 University of Minnesota, CEMS
