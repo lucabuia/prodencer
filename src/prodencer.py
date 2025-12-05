@@ -1,3 +1,15 @@
+# ProDenCeR v1.0
+# Luca Buiarelli, Seongjoo Jung, Hyeonseo Park and Turan Birol
+# 2025
+# Birol Group, CEMS, Univeristy of Minnesota, Minneapolis, USA
+#
+# This code is freely available for use, modification, and distribution.
+# It is provided "as is", without warranty of any kind, express or implied.
+# The author and affiliated institution assume no responsibility for any
+# errors, bugs, or consequences resulting from the use of this software.
+#
+# If you use this code in academic work, proper citation is appreciated.
+
 import numpy as np
 import netCDF4 as nc
 import os
@@ -8,6 +20,376 @@ from spgrep.representation import get_character
 from numpy.fft import fftn, fftshift
 import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi, voronoi_plot_2d
+
+
+def project_irreps(
+    density_file,
+    dft_code,
+    spacegroup=1,
+    auto_symmetry=False,
+    supercell_size=None,
+    kpoint=None,
+):
+    """
+    Project real-space density components onto the irreducible representations (irreps)
+    of the little group of a specified k-point.
+
+    This function:
+    1. Loads the density data from a DFT code output.
+    2. Identifies the space group symmetry operations (rotations and translations).
+    3. Determines the little group of the given k-point and its irreps.
+    4. Projects each component of the density onto each irrep.
+    5. Saves the projected densities into `.xsf` files for visualization.
+    6. Writes symmetry information, character tables, and projection weights
+       into an output log file (`.pdout`).
+
+    Parameters
+    ----------
+    density_file : str
+        Path to the density file produced by the DFT calculation.
+    dft_code : str
+        Identifier for the DFT code used (used by `load_density_file` to parse the file).
+    spacegroup : int
+        Hall number specifying the space group symmetry. Default is 1.
+        For full list see: https://yseto.net/en/sg/sg1
+    auto_symmetry: bool, optional
+        Automatic detection of space group Hall number. May not be useful in many cases, since this function
+        is thought to be used to project onto the irreps of the PARENT high-symmetry space group. If you use
+        automatic detection, you will likely only get the trivial irrep. Thus, defult is False.
+    supercell_size : list[int], optional
+        Size of the supercell used for projection in each lattice direction,
+        defaults to [1, 1, 1]. Needed for commensurate points away from Gamma,
+        for example one needs [2, 1, 1] for the k-point [0.5, 0, 0].
+    kpoint : list[float], optional
+        Target k-point in reciprocal coordinates. Defaults to Gamma point [0, 0, 0].
+
+    Returns
+    -------
+    - A `.pdout` text file containing:
+        * Lattice vectors
+        * Space group operations
+        * Little group operations
+        * Irrep character tables
+        * Projection weights for each density component
+    - `.xsf` files for each projected component, named
+      `{basename}_{component}_irrep{i}.xsf`.
+    """
+    # Handle default parameters
+    if kpoint is None:
+        kpoint = [0.0, 0.0, 0.0]
+    kpoint = np.asarray(kpoint)
+    
+    if supercell_size is None:
+        supercell_size = [1, 1, 1]
+    supercell_size = np.asarray(supercell_size, dtype=int)
+
+    # load density explicitly according to dft_code
+    lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
+
+    # If user has not set space group number and set auto_symmetry on, then find symmetry with spglib
+    # Not suggested since this function is thought to be used to project onto irreps of parent phase
+    if auto_symmetry and spacegroup == 1:
+        spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
+
+    # give output file name
+    input_basename = get_output_basename()
+    output_file = input_basename + ".pdout"
+
+    # helper function to print to screen and file
+    def write(msg):
+        print(msg)
+        f.write(msg + "\n")
+
+    symmetry = spglib.get_symmetry_from_database(spacegroup)
+    symm = np.array(symmetry['rotations'])
+    tnons = np.array(symmetry['translations']) # Non-symmorphic translations
+    irreps, mapping_little_group = get_spacegroup_irreps_from_primitive_symmetry(symm, tnons, kpoint)
+    little_group_symm = symm[mapping_little_group]
+    little_group_tnons = tnons[mapping_little_group]
+    
+    with open(output_file, "w") as f:
+
+        # --- Print lattice and positions ---
+        write("\n=== Lattice vectors (Bohr radii) ===")
+        for i, vec in enumerate(lattice):
+            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
+        
+        # --- Print symmetry elements and irrep characters ---
+        write("\n=== Space Group Symmetry Operations ===")
+        write(f"Space group Hall number: {spacegroup}")
+        write(f"Total operations: {len(symm)}")
+        write(f"Selected k-point: {kpoint}")
+        write(f"Little group operations: {len(little_group_symm)}")
+        write(f"Number of irreps: {len(irreps)}")
+        
+        write("\n--- Little group symmetry Operations (Rotation + Non-symmorphic Translation) ---")
+        for i, (rot, trans) in enumerate(zip(little_group_symm, little_group_tnons)):
+            write(f"Operation {i+1}:")
+            write(f"  Rotation:\n{rot}")
+            write(f"  Translation: {trans}")
+            write("")
+
+        write("\n--- Irrep Character Tables ---")
+        for i, irrep in enumerate(irreps):
+            characters = get_character(irrep)
+            write(f"Irrep {i+1}: {characters}")
+        
+        write("\n" + "="*60)
+        write("PROJECTING DENSITY ONTO IRREPS")
+        write("="*60)
+
+        # --- Project all components onto all irreps ---
+        for comp_name, density in comp_arrays.items():
+            write(f"\n=== Projecting {comp_name} component ===")
+            
+            # Calculate max of original component for weight normalization
+            max_original = np.max(np.abs(density))
+            write(f"Max absolute value of original {comp_name}: {max_original:.6f}\n")
+            
+            for i, irrep in enumerate(irreps):
+                write(f"Projecting onto irrep {i+1}...")
+                
+                char_table = get_character(irrep)
+                proj_density = project_single_irrep(density, little_group_symm, little_group_tnons, char_table, supercell_size, kpoint)
+                
+                # Calculate weight: max(projected) / max(original)
+                max_projected = np.max(np.abs(proj_density))
+                weight = max_projected / max_original if max_original > 0 else 0
+                
+                # Generate output filename
+                outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
+                generate_xsf_file(proj_density, lattice, outname)
+                
+                write(f"Done! Saved as {outname}")
+                write(f"Weight (max|proj|/max|orig|): {weight:.6f}\n")
+            
+            write("-" * 40)
+        
+        write("\nAll projections completed successfully!")
+
+
+def project_harmonics(
+    density_file,
+    dft_code,
+    center,
+    radius,
+    spacegroup=1,
+    auto_symmetry=True,
+    output_components=False,
+    decimals=4,
+    units="multi"
+):
+    """
+    Project real-space density components onto tesseral harmonics 
+    (multipole expansion) around a given center within a sphere of radius R.
+
+    This function:
+    1. Loads the density data from a DFT code output.
+    2. Expands the density inside a sphere of radius `radius` centered at 
+       the specified atomic/site position(s).
+    3. Groups the expansion coefficients into s, p, d, f, g, h, and i 
+       harmonics.
+    4. Prints results for each symmetry-equivalent Wyckoff position 
+       (from the specified or automatically detected spacegroup).
+    5. Optionally outputs analytical harmonics into `.xsf` files for 
+       visualization.
+
+    Parameters
+    ----------
+    density_file : str
+        Path to the density file produced by the DFT calculation.
+    dft_code : str
+        Identifier for the DFT code used (parsed by `load_density_file`).
+    center : list[float]
+        Reference position (in fractional coordinates) around which 
+        the spherical expansion is performed.
+    radius : float
+        Radius of the sphere (in Bohr radii) within which the density is projected.
+    spacegroup : int, optional
+        Space group Hall number (default = 1, i.e. P1 symmetry). Used to generate
+        Wyckoff-equivalent positions. For full list see: https://yseto.net/en/sg/sg1
+    auto_symmetry : bool, optional
+        Automatic detection of Hall number through spglib. Default is True.
+        NOTICE: Only works if spacegroup=1.
+    output_components : bool, optional
+        If True, writes analytical harmonics for each component into `.xsf` 
+        files for visualization. Default is False.
+    decimals : int, optional
+        Number of decimal places to use when formatting printed results. 
+        Default is 4.
+
+    Returns
+    -------
+    - A `.pdout` text file containing:
+        * Lattice vectors
+        * Wyckoff-equivalent positions
+        * Multipole expansion coefficients for s–i harmonics at each position
+        * Sum over all positions (if multiple sites are present)
+    - `.xsf` files (if `output_components=True`), containing real-space 
+      harmonics for each component of the density.
+    """
+
+    lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
+
+    # If user has not set space group number and left auto_symmetry on, then find symmetry with spglib
+    if auto_symmetry and spacegroup == 1:
+        spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
+
+    input_basename = get_output_basename()
+    output_file = input_basename + ".pdout"
+
+    center = np.asarray(center)
+    positions = np.round(wyckoff(center, spacegroup), 5)
+
+    # formatting settings
+    LABEL_FIELD_WIDTH = 3    # narrower for "s", "p", "d", ...
+    VALUE_FIELD_WIDTH = 14   # enough space for numbers and multipole names
+
+    NUM_FMT = f"{{:{VALUE_FIELD_WIDTH}.{decimals}f}}"
+    LABEL_FMT = f"{{:<{LABEL_FIELD_WIDTH}}}"
+
+    def fmt(v):
+        return NUM_FMT.format(v)
+
+    def print_block(label, arr, labels_list):
+        # header row
+        write(
+            LABEL_FMT.format(label)
+            + " | ".join(f"{lab:>{VALUE_FIELD_WIDTH}}" for lab in labels_list)
+        )
+        # value row
+        write(
+            LABEL_FMT.format(label)
+            + " | ".join(fmt(v) for v in arr)
+        )
+
+
+    # labels for each multipole
+    MULTIPOLE_LABELS = {
+    "s": ["s"],
+    "p": ["y", "z", "x"],
+    "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
+    "f": ["y(3x^2-y^2)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
+    "g": ["xy(x^2-y^2)", "yz(3x^2-y^2)", "xyz^2", "yz^3", "z^4", "xz^3",
+          "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"],
+    "h": ["x^2y^3", "xyz(x^2-y^2)", "yz^2(3x^2-y^2)", "xyz^3", "yz^4", "z^5",
+          "xz^4", "(x^2-y^2)z^3", "xz^2(x^2-3y^2)", "x^2y^2z", "x^3y^2"],
+    "i": ["x^3y^3", "x^2y^3z", "xy(x^2-y^2)z^2", "yz^3(3x^2-y^2)", "xyz^4", "yz^5",
+          "z^6", "xz^5", "(x^2-y^2)z^4", "xz^3(x^2-3y^2)", "x^2y^2z^2",
+          "x^3y^2z", "x^2y^2(x^2-y^2)"]
+    }
+
+    # helper function to print to screen and file
+    def write(msg):
+        print(msg)
+        f.write(msg + "\n")        
+
+    with open(output_file, "w") as f:
+
+        # --- Print lattice and positions ---
+        write("\n=== Lattice vectors (Bohr radii) ===")
+        for i, vec in enumerate(lattice):
+            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
+        
+        write(f"\n=== Space Group Hall number: {spacegroup:.0f} ===")
+        write("(Visit https://yseto.net/en/sg/sg1 for full list)")
+
+        write("\n=== Wyckoff-equivalent positions ===")
+        for i, pos in enumerate(positions):
+            write(f"Position {i+1}: [{pos[0]:.5f}, {pos[1]:.5f}, {pos[2]:.5f}]")
+        write("\n" + "-"*145 + "\n")
+
+        # --- Multipole projections ---
+        for comp, arr in comp_arrays.items():
+            coeffs_list = []
+
+            write(f"\n=== Projections for component: {comp} ===\n")
+
+            for idx, pos in enumerate(positions):
+                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius, units)
+                coeffs_list.append(coeffs_row)
+
+                s_coeff = coeffs_row[0:1]
+                p_coeff = coeffs_row[1:4]
+                d_coeff = coeffs_row[4:9]
+                f_coeff = coeffs_row[9:16]
+                g_coeff = coeffs_row[16:25]
+                h_coeff = coeffs_row[25:36]
+                i_coeff = coeffs_row[36:49]
+
+                write(f"Position {idx+1}: {pos}")
+                write("-" * 145)
+                print_block("s", s_coeff, MULTIPOLE_LABELS["s"])
+                print_block("p", p_coeff, MULTIPOLE_LABELS["p"])
+                print_block("d", d_coeff, MULTIPOLE_LABELS["d"])
+                print_block("f", f_coeff, MULTIPOLE_LABELS["f"])
+                print_block("g", g_coeff, MULTIPOLE_LABELS["g"])
+                print_block("h", h_coeff, MULTIPOLE_LABELS["h"])
+                print_block("i", i_coeff, MULTIPOLE_LABELS["i"])
+                write("-" * 145 + "\n")
+
+            coeffs = np.array(coeffs_list)
+
+            # Only print sum if there is more than one site
+            if len(positions) > 1:
+                sum_coeffs = np.sum(coeffs, axis=0)
+                write(f"=== Sum over positions for component: {comp} ===")
+                write("-" * 145)
+                print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
+                print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
+                print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
+                print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
+                print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
+                print_block("h", sum_coeffs[25:36], MULTIPOLE_LABELS["h"])
+                print_block("i", sum_coeffs[36:49], MULTIPOLE_LABELS["i"])
+                write("-" * 145 + "\n")
+
+            if output_components:
+                outname = f"{input_basename}_{comp}"
+                write("Outputting the analytical harmonics into .xsf files. Might take a while...\n")
+                output_analytical_components(lattice, positions, radius, coeffs, outname)
+                write("Done!")
+
+
+def load_density_file(density_file, dft_code):
+    """
+    Load density from file and return standardized components.
+    
+    Parameters
+    ----------
+    density_file : str
+        Path to the density file.
+    dft_code : str
+        'vasp' or 'abinit'
+        
+    Returns
+    -------
+    tuple: (lattice, grid, comp_arrays)
+        comp_arrays is a dict with keys like 'charge', 'mx', etc.
+    """
+    ft = dft_code.lower()
+    if ft == "abinit":
+        out = ABINIT_get_density(density_file)
+    elif ft == "vasp":
+        out = VASP_get_density(density_file)
+    else:
+        raise ValueError("dft_code must be 'abinit' or 'vasp'")
+
+    if len(out) == 5:
+        lattice, atomic_positions, atomic_species, grid, charge = out
+        comp_arrays = {"charge": charge}
+    elif len(out) == 6:
+        lattice, atomic_positions, atomic_species, grid, charge, mz = out
+        comp_arrays = {"charge": charge, "mz": mz}
+    elif len(out) == 8:
+        lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = out
+        comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
+    else:
+        raise ValueError(
+            f"Unexpected return from density reader: expected 5, 6 or 8 items, got {len(out)}"
+        )
+    
+    return lattice, atomic_positions, atomic_species, grid, comp_arrays
 
 
 def ABINIT_get_density(input="GSo_DEN.nc"):
@@ -920,376 +1302,6 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
             )
 
     return proj
-
-
-def project_irreps(
-    density_file,
-    dft_code,
-    spacegroup=1,
-    auto_symmetry=False,
-    supercell_size=None,
-    kpoint=None,
-):
-    """
-    Project real-space density components onto the irreducible representations (irreps)
-    of the little group of a specified k-point.
-
-    This function:
-    1. Loads the density data from a DFT code output.
-    2. Identifies the space group symmetry operations (rotations and translations).
-    3. Determines the little group of the given k-point and its irreps.
-    4. Projects each component of the density onto each irrep.
-    5. Saves the projected densities into `.xsf` files for visualization.
-    6. Writes symmetry information, character tables, and projection weights
-       into an output log file (`.pdout`).
-
-    Parameters
-    ----------
-    density_file : str
-        Path to the density file produced by the DFT calculation.
-    dft_code : str
-        Identifier for the DFT code used (used by `load_density_file` to parse the file).
-    spacegroup : int
-        Hall number specifying the space group symmetry. Default is 1.
-        For full list see: https://yseto.net/en/sg/sg1
-    auto_symmetry: bool, optional
-        Automatic detection of space group Hall number. May not be useful in many cases, since this function
-        is thought to be used to project onto the irreps of the PARENT high-symmetry space group. If you use
-        automatic detection, you will likely only get the trivial irrep. Thus, defult is False.
-    supercell_size : list[int], optional
-        Size of the supercell used for projection in each lattice direction,
-        defaults to [1, 1, 1]. Needed for commensurate points away from Gamma,
-        for example one needs [2, 1, 1] for the k-point [0.5, 0, 0].
-    kpoint : list[float], optional
-        Target k-point in reciprocal coordinates. Defaults to Gamma point [0, 0, 0].
-
-    Returns
-    -------
-    - A `.pdout` text file containing:
-        * Lattice vectors
-        * Space group operations
-        * Little group operations
-        * Irrep character tables
-        * Projection weights for each density component
-    - `.xsf` files for each projected component, named
-      `{basename}_{component}_irrep{i}.xsf`.
-    """
-    # Handle default parameters
-    if kpoint is None:
-        kpoint = [0.0, 0.0, 0.0]
-    kpoint = np.asarray(kpoint)
-    
-    if supercell_size is None:
-        supercell_size = [1, 1, 1]
-    supercell_size = np.asarray(supercell_size, dtype=int)
-
-    # load density explicitly according to dft_code
-    lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
-
-    # If user has not set space group number and set auto_symmetry on, then find symmetry with spglib
-    # Not suggested since this function is thought to be used to project onto irreps of parent phase
-    if auto_symmetry and spacegroup == 1:
-        spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
-
-    # give output file name
-    input_basename = get_output_basename()
-    output_file = input_basename + ".pdout"
-
-    # helper function to print to screen and file
-    def write(msg):
-        print(msg)
-        f.write(msg + "\n")
-
-    symmetry = spglib.get_symmetry_from_database(spacegroup)
-    symm = np.array(symmetry['rotations'])
-    tnons = np.array(symmetry['translations']) # Non-symmorphic translations
-    irreps, mapping_little_group = get_spacegroup_irreps_from_primitive_symmetry(symm, tnons, kpoint)
-    little_group_symm = symm[mapping_little_group]
-    little_group_tnons = tnons[mapping_little_group]
-    
-    with open(output_file, "w") as f:
-
-        # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Bohr radii) ===")
-        for i, vec in enumerate(lattice):
-            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
-        
-        # --- Print symmetry elements and irrep characters ---
-        write("\n=== Space Group Symmetry Operations ===")
-        write(f"Space group Hall number: {spacegroup}")
-        write(f"Total operations: {len(symm)}")
-        write(f"Selected k-point: {kpoint}")
-        write(f"Little group operations: {len(little_group_symm)}")
-        write(f"Number of irreps: {len(irreps)}")
-        
-        write("\n--- Little group symmetry Operations (Rotation + Non-symmorphic Translation) ---")
-        for i, (rot, trans) in enumerate(zip(little_group_symm, little_group_tnons)):
-            write(f"Operation {i+1}:")
-            write(f"  Rotation:\n{rot}")
-            write(f"  Translation: {trans}")
-            write("")
-
-        write("\n--- Irrep Character Tables ---")
-        for i, irrep in enumerate(irreps):
-            characters = get_character(irrep)
-            write(f"Irrep {i+1}: {characters}")
-        
-        write("\n" + "="*60)
-        write("PROJECTING DENSITY ONTO IRREPS")
-        write("="*60)
-
-        # --- Project all components onto all irreps ---
-        for comp_name, density in comp_arrays.items():
-            write(f"\n=== Projecting {comp_name} component ===")
-            
-            # Calculate max of original component for weight normalization
-            max_original = np.max(np.abs(density))
-            write(f"Max absolute value of original {comp_name}: {max_original:.6f}\n")
-            
-            for i, irrep in enumerate(irreps):
-                write(f"Projecting onto irrep {i+1}...")
-                
-                char_table = get_character(irrep)
-                proj_density = project_single_irrep(density, little_group_symm, little_group_tnons, char_table, supercell_size, kpoint)
-                
-                # Calculate weight: max(projected) / max(original)
-                max_projected = np.max(np.abs(proj_density))
-                weight = max_projected / max_original if max_original > 0 else 0
-                
-                # Generate output filename
-                outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
-                generate_xsf_file(proj_density, lattice, outname)
-                
-                write(f"Done! Saved as {outname}")
-                write(f"Weight (max|proj|/max|orig|): {weight:.6f}\n")
-            
-            write("-" * 40)
-        
-        write("\nAll projections completed successfully!")
-
-
-def project_harmonics(
-    density_file,
-    dft_code,
-    center,
-    radius,
-    spacegroup=1,
-    auto_symmetry=True,
-    output_components=False,
-    decimals=4,
-    units="multi"
-):
-    """
-    Project real-space density components onto tesseral harmonics 
-    (multipole expansion) around a given center within a sphere of radius R.
-
-    This function:
-    1. Loads the density data from a DFT code output.
-    2. Expands the density inside a sphere of radius `radius` centered at 
-       the specified atomic/site position(s).
-    3. Groups the expansion coefficients into s, p, d, f, g, h, and i 
-       harmonics.
-    4. Prints results for each symmetry-equivalent Wyckoff position 
-       (from the specified or automatically detected spacegroup).
-    5. Optionally outputs analytical harmonics into `.xsf` files for 
-       visualization.
-
-    Parameters
-    ----------
-    density_file : str
-        Path to the density file produced by the DFT calculation.
-    dft_code : str
-        Identifier for the DFT code used (parsed by `load_density_file`).
-    center : list[float]
-        Reference position (in fractional coordinates) around which 
-        the spherical expansion is performed.
-    radius : float
-        Radius of the sphere (in Bohr radii) within which the density is projected.
-    spacegroup : int, optional
-        Space group Hall number (default = 1, i.e. P1 symmetry). Used to generate
-        Wyckoff-equivalent positions. For full list see: https://yseto.net/en/sg/sg1
-    auto_symmetry : bool, optional
-        Automatic detection of Hall number through spglib. Default is True.
-        NOTICE: Only works if spacegroup=1.
-    output_components : bool, optional
-        If True, writes analytical harmonics for each component into `.xsf` 
-        files for visualization. Default is False.
-    decimals : int, optional
-        Number of decimal places to use when formatting printed results. 
-        Default is 4.
-
-    Returns
-    -------
-    - A `.pdout` text file containing:
-        * Lattice vectors
-        * Wyckoff-equivalent positions
-        * Multipole expansion coefficients for s–i harmonics at each position
-        * Sum over all positions (if multiple sites are present)
-    - `.xsf` files (if `output_components=True`), containing real-space 
-      harmonics for each component of the density.
-    """
-
-    lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
-
-    # If user has not set space group number and left auto_symmetry on, then find symmetry with spglib
-    if auto_symmetry and spacegroup == 1:
-        spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
-
-    input_basename = get_output_basename()
-    output_file = input_basename + ".pdout"
-
-    center = np.asarray(center)
-    positions = np.round(wyckoff(center, spacegroup), 5)
-
-    # formatting settings
-    LABEL_FIELD_WIDTH = 3    # narrower for "s", "p", "d", ...
-    VALUE_FIELD_WIDTH = 14   # enough space for numbers and multipole names
-
-    NUM_FMT = f"{{:{VALUE_FIELD_WIDTH}.{decimals}f}}"
-    LABEL_FMT = f"{{:<{LABEL_FIELD_WIDTH}}}"
-
-    def fmt(v):
-        return NUM_FMT.format(v)
-
-    def print_block(label, arr, labels_list):
-        # header row
-        write(
-            LABEL_FMT.format(label)
-            + " | ".join(f"{lab:>{VALUE_FIELD_WIDTH}}" for lab in labels_list)
-        )
-        # value row
-        write(
-            LABEL_FMT.format(label)
-            + " | ".join(fmt(v) for v in arr)
-        )
-
-
-    # labels for each multipole
-    MULTIPOLE_LABELS = {
-    "s": ["s"],
-    "p": ["y", "z", "x"],
-    "d": ["xy", "yz", "z^2", "xz", "x^2-y^2"],
-    "f": ["y(3x^2-y^2)", "xyz", "yz^2", "z^3", "xz^2", "z(x^2-y^2)", "x(x^2-3y^2)"],
-    "g": ["xy(x^2-y^2)", "yz(3x^2-y^2)", "xyz^2", "yz^3", "z^4", "xz^3",
-          "(x^2-y^2)z^2", "xz(x^2-3y^2)", "x^2y^2"],
-    "h": ["x^2y^3", "xyz(x^2-y^2)", "yz^2(3x^2-y^2)", "xyz^3", "yz^4", "z^5",
-          "xz^4", "(x^2-y^2)z^3", "xz^2(x^2-3y^2)", "x^2y^2z", "x^3y^2"],
-    "i": ["x^3y^3", "x^2y^3z", "xy(x^2-y^2)z^2", "yz^3(3x^2-y^2)", "xyz^4", "yz^5",
-          "z^6", "xz^5", "(x^2-y^2)z^4", "xz^3(x^2-3y^2)", "x^2y^2z^2",
-          "x^3y^2z", "x^2y^2(x^2-y^2)"]
-    }
-
-    # helper function to print to screen and file
-    def write(msg):
-        print(msg)
-        f.write(msg + "\n")        
-
-    with open(output_file, "w") as f:
-
-        # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Bohr radii) ===")
-        for i, vec in enumerate(lattice):
-            write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
-        
-        write(f"\n=== Space Group Hall number: {spacegroup:.0f} ===")
-        write("(Visit https://yseto.net/en/sg/sg1 for full list)")
-
-        write("\n=== Wyckoff-equivalent positions ===")
-        for i, pos in enumerate(positions):
-            write(f"Position {i+1}: [{pos[0]:.5f}, {pos[1]:.5f}, {pos[2]:.5f}]")
-        write("\n" + "-"*145 + "\n")
-
-        # --- Multipole projections ---
-        for comp, arr in comp_arrays.items():
-            coeffs_list = []
-
-            write(f"\n=== Projections for component: {comp} ===\n")
-
-            for idx, pos in enumerate(positions):
-                coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius, units)
-                coeffs_list.append(coeffs_row)
-
-                s_coeff = coeffs_row[0:1]
-                p_coeff = coeffs_row[1:4]
-                d_coeff = coeffs_row[4:9]
-                f_coeff = coeffs_row[9:16]
-                g_coeff = coeffs_row[16:25]
-                h_coeff = coeffs_row[25:36]
-                i_coeff = coeffs_row[36:49]
-
-                write(f"Position {idx+1}: {pos}")
-                write("-" * 145)
-                print_block("s", s_coeff, MULTIPOLE_LABELS["s"])
-                print_block("p", p_coeff, MULTIPOLE_LABELS["p"])
-                print_block("d", d_coeff, MULTIPOLE_LABELS["d"])
-                print_block("f", f_coeff, MULTIPOLE_LABELS["f"])
-                print_block("g", g_coeff, MULTIPOLE_LABELS["g"])
-                print_block("h", h_coeff, MULTIPOLE_LABELS["h"])
-                print_block("i", i_coeff, MULTIPOLE_LABELS["i"])
-                write("-" * 145 + "\n")
-
-            coeffs = np.array(coeffs_list)
-
-            # Only print sum if there is more than one site
-            if len(positions) > 1:
-                sum_coeffs = np.sum(coeffs, axis=0)
-                write(f"=== Sum over positions for component: {comp} ===")
-                write("-" * 145)
-                print_block("s", sum_coeffs[0:1], MULTIPOLE_LABELS["s"])
-                print_block("p", sum_coeffs[1:4], MULTIPOLE_LABELS["p"])
-                print_block("d", sum_coeffs[4:9], MULTIPOLE_LABELS["d"])
-                print_block("f", sum_coeffs[9:16], MULTIPOLE_LABELS["f"])
-                print_block("g", sum_coeffs[16:25], MULTIPOLE_LABELS["g"])
-                print_block("h", sum_coeffs[25:36], MULTIPOLE_LABELS["h"])
-                print_block("i", sum_coeffs[36:49], MULTIPOLE_LABELS["i"])
-                write("-" * 145 + "\n")
-
-            if output_components:
-                outname = f"{input_basename}_{comp}"
-                write("Outputting the analytical harmonics into .xsf files. Might take a while...\n")
-                output_analytical_components(lattice, positions, radius, coeffs, outname)
-                write("Done!")
-
-
-def load_density_file(density_file, dft_code):
-    """
-    Load density from file and return standardized components.
-    
-    Parameters
-    ----------
-    density_file : str
-        Path to the density file.
-    dft_code : str
-        'vasp' or 'abinit'
-        
-    Returns
-    -------
-    tuple: (lattice, grid, comp_arrays)
-        comp_arrays is a dict with keys like 'charge', 'mx', etc.
-    """
-    ft = dft_code.lower()
-    if ft == "abinit":
-        out = ABINIT_get_density(density_file)
-    elif ft == "vasp":
-        out = VASP_get_density(density_file)
-    else:
-        raise ValueError("dft_code must be 'abinit' or 'vasp'")
-
-    if len(out) == 5:
-        lattice, atomic_positions, atomic_species, grid, charge = out
-        comp_arrays = {"charge": charge}
-    elif len(out) == 6:
-        lattice, atomic_positions, atomic_species, grid, charge, mz = out
-        comp_arrays = {"charge": charge, "mz": mz}
-    elif len(out) == 8:
-        lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = out
-        comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
-    else:
-        raise ValueError(
-            f"Unexpected return from density reader: expected 5, 6 or 8 items, got {len(out)}"
-        )
-    
-    return lattice, atomic_positions, atomic_species, grid, comp_arrays
 
 
 def get_output_basename():
