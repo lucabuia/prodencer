@@ -16,11 +16,11 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
     Returns:
       - If the file contains only the charge density (non-magnetic calculation, nspden=1):
-          lattice, atomic_positions, (ng1, ng2, ng3), charge
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
       - If the file contains charge + 1 spin components (magnetic collinear calculation, nspden=2):
-          lattice, atomic_positions, (ng1, ng2, ng3), charge, mz
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
       - If the file contains charge + 3 spin components (magnetic non-collinear calculation, nspden=4):
-          lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
     """
     if not os.path.isfile(input):
         raise FileNotFoundError(f"ABINIT density file not found: {input}")
@@ -43,6 +43,12 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         else:
             raise RuntimeError("Atomic positions not found.")
 
+        # ----- atomic species -----
+        if "reduced_atom_positions" in dataset.variables:
+            atomic_species = dataset.variables["atom_species"][:].T
+        else:
+            raise RuntimeError("Atomic species not found.")
+
         # ----- density -----
         if "density" not in dataset.variables:
             raise RuntimeError("Density data not found.")
@@ -62,19 +68,19 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 
         if components == 1:
             print("ABINIT file: charge density only.")
-            return lattice, atomic_positions, (ng1, ng2, ng3), charge
+            return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
 
         elif components == 2:
             print("ABINIT file: charge density and collinear spin density.")
             mz = density[0, :, :, :, 1] / norm_const
-            return lattice, atomic_positions, (ng1, ng2, ng3), charge, mz
+            return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
 
         elif components == 4:
             print("ABINIT file: charge density and full spin density (mx, my, mz).")
             mx = density[0, :, :, :, 1] / norm_const
             my = density[0, :, :, :, 2] / norm_const
             mz = density[0, :, :, :, 3] / norm_const
-            return lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
+            return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
 
         else:
             raise RuntimeError(f"Unexpected number of density components: {components}")
@@ -117,6 +123,7 @@ def VASP_get_density(input="CHGCAR"):
         # --- atom info ---
         atom_types = chgcar.readline().split()
         atom_counts = np.array(chgcar.readline().split(), int)
+        atomic_species = np.repeat(np.arange(1, len(atom_counts) + 1), atom_counts)
         n_atoms = np.sum(atom_counts)
 
         coord_type = chgcar.readline().strip()
@@ -124,9 +131,9 @@ def VASP_get_density(input="CHGCAR"):
             coord_type = chgcar.readline().strip()
 
         # Atomic positions
-        atomic_positions = np.zeros((n_atoms, 3))
+        atomic_positions = np.zeros((3, n_atoms))
         for i in range(n_atoms):
-            atomic_positions[i] = np.array(chgcar.readline().split()[:3], float)
+            atomic_positions[:, i] = np.array(chgcar.readline().split()[:3], float)
 
         # Skip blank line(s)
         while True:
@@ -170,17 +177,17 @@ def VASP_get_density(input="CHGCAR"):
     if ncomp == 1:
         print("CHGCAR: charge only.")
         (charge,) = densities
-        return lattice, atomic_positions, (ng1, ng2, ng3), charge
+        return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
 
     elif ncomp == 2:
         print("CHGCAR: collinear spin (charge + m_z).")
         charge, mz = densities
-        return lattice, atomic_positions, (ng1, ng2, ng3), charge, mz
+        return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
 
     elif ncomp == 4:
         print("CHGCAR: non-collinear spin (charge + mx,my,mz).")
         charge, mx, my, mz = densities
-        return lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
+        return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
 
     else:
         raise RuntimeError(f"Unexpected number of densities in CHGCAR: {ncomp}")
@@ -258,11 +265,11 @@ def project_sphere(density, lattice, center_red, radius, units="multi"):
     radius (float): Radius of the sphere centered at the atom, in atomic (Bohr radii) units.
     units (str): Specifies the unit system for the projection.
         - "multi": Uses multipolar units, expressed as |e|*a0^l for charge densities
-          or \mu_B*a0^l for magnetization densities, where a0 is the Bohr radius,
-          |e| is the elementary charge, and \mu_B is the Bohr magneton.
+          or μ_B*a0^l for magnetization densities, where a0 is the Bohr radius,
+          |e| is the elementary charge, and μ_B is the Bohr magneton.
           These units correspond to multipole moments of order l.
         - "charge": Uses normalized units, i.e., |e| for charge
-          and \mu_B for magnetic moments, corresponding to using the standard definition of
+          and μ_B for magnetic moments, corresponding to using the standard definition of
           the tesseral harmonics normalized by the radial distance.
 
     Returns:
@@ -816,6 +823,15 @@ def wyckoff(center, space_group_number):
     return unique_positions
 
 
+def find_Hall(lattice, atomic_positions, atomic_species):
+
+    structure = (lattice, np.transpose(atomic_positions), atomic_species)
+    str_object = spglib.get_symmetry_dataset(structure, symprec=1e-6)
+    Hall = str_object.hall_number
+
+    return Hall
+
+
 def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
     """
     Project a charge or spin density from a distorted (primitive or super-) cell onto the 
@@ -909,8 +925,9 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
 def project_irreps(
     density_file,
     dft_code,
-    spacegroup,
-    supercell_size=None, 
+    spacegroup=1,
+    auto_symmetry=False,
+    supercell_size=None,
     kpoint=None,
 ):
     """
@@ -933,12 +950,18 @@ def project_irreps(
     dft_code : str
         Identifier for the DFT code used (used by `load_density_file` to parse the file).
     spacegroup : int
-        International or Hall number specifying the space group symmetry.
+        Hall number specifying the space group symmetry. Default is 1.
+        For full list see: https://yseto.net/en/sg/sg1
+    auto_symmetry: bool, optional
+        Automatic detection of space group Hall number. May not be useful in many cases, since this function
+        is thought to be used to project onto the irreps of the PARENT high-symmetry space group. If you use
+        automatic detection, you will likely only get the trivial irrep. Thus, defult is False.
     supercell_size : list[int], optional
         Size of the supercell used for projection in each lattice direction,
-        defaults to [1, 1, 1].
+        defaults to [1, 1, 1]. Needed for commensurate points away from Gamma,
+        for example one needs [2, 1, 1] for the k-point [0.5, 0, 0].
     kpoint : list[float], optional
-        Target k-point in reciprocal coordinates. Defaults to [0.0, 0.0, 0.0].
+        Target k-point in reciprocal coordinates. Defaults to Gamma point [0, 0, 0].
 
     Returns
     -------
@@ -961,7 +984,12 @@ def project_irreps(
     supercell_size = np.asarray(supercell_size, dtype=int)
 
     # load density explicitly according to dft_code
-    lattice, grid, comp_arrays = load_density_file(density_file, dft_code)
+    lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
+
+    # If user has not set space group number and set auto_symmetry on, then find symmetry with spglib
+    # Not suggested since this function is thought to be used to project onto irreps of parent phase
+    if auto_symmetry and spacegroup == 1:
+        spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
 
     # give output file name
     input_basename = get_output_basename()
@@ -1046,6 +1074,7 @@ def project_harmonics(
     center,
     radius,
     spacegroup=1,
+    auto_symmetry=True,
     output_components=False,
     decimals=4,
     units="multi"
@@ -1061,7 +1090,7 @@ def project_harmonics(
     3. Groups the expansion coefficients into s, p, d, f, g, h, and i 
        harmonics.
     4. Prints results for each symmetry-equivalent Wyckoff position 
-       (from the specified spacegroup).
+       (from the specified or automatically detected spacegroup).
     5. Optionally outputs analytical harmonics into `.xsf` files for 
        visualization.
 
@@ -1077,8 +1106,11 @@ def project_harmonics(
     radius : float
         Radius of the sphere (in Bohr radii) within which the density is projected.
     spacegroup : int, optional
-        Space group number (default = 1, i.e. P1 symmetry). Used to generate
-        Wyckoff-equivalent positions.
+        Space group Hall number (default = 1, i.e. P1 symmetry). Used to generate
+        Wyckoff-equivalent positions. For full list see: https://yseto.net/en/sg/sg1
+    auto_symmetry : bool, optional
+        Automatic detection of Hall number through spglib. Default is True.
+        NOTICE: Only works if spacegroup=1.
     output_components : bool, optional
         If True, writes analytical harmonics for each component into `.xsf` 
         files for visualization. Default is False.
@@ -1097,7 +1129,12 @@ def project_harmonics(
       harmonics for each component of the density.
     """
 
-    lattice, grid, comp_arrays = load_density_file(density_file, dft_code)
+    lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
+
+    # If user has not set space group number and left auto_symmetry on, then find symmetry with spglib
+    if auto_symmetry and spacegroup == 1:
+        spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
+
     input_basename = get_output_basename()
     output_file = input_basename + ".pdout"
 
@@ -1153,6 +1190,9 @@ def project_harmonics(
         write("\n=== Lattice vectors (Bohr radii) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
+        
+        write(f"\n=== Space Group Hall number: {spacegroup:.0f} ===")
+        write("(Visit https://yseto.net/en/sg/sg1 for full list)")
 
         write("\n=== Wyckoff-equivalent positions ===")
         for i, pos in enumerate(positions):
@@ -1235,18 +1275,21 @@ def load_density_file(density_file, dft_code):
     else:
         raise ValueError("dft_code must be 'abinit' or 'vasp'")
 
-    if len(out) == 4:
-        lattice, atomic_positions, grid, charge = out
+    if len(out) == 5:
+        lattice, atomic_positions, atomic_species, grid, charge = out
         comp_arrays = {"charge": charge}
-    elif len(out) == 7:
-        lattice, atomic_positions, grid, charge, mx, my, mz = out
+    elif len(out) == 6:
+        lattice, atomic_positions, atomic_species, grid, charge, mz = out
+        comp_arrays = {"charge": charge, "mz": mz}
+    elif len(out) == 8:
+        lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = out
         comp_arrays = {"charge": charge, "mx": mx, "my": my, "mz": mz}
     else:
         raise ValueError(
-            f"Unexpected return from density reader: expected 4 or 7 items, got {len(out)}"
+            f"Unexpected return from density reader: expected 5, 6 or 8 items, got {len(out)}"
         )
     
-    return lattice, grid, comp_arrays
+    return lattice, atomic_positions, atomic_species, grid, comp_arrays
 
 
 def get_output_basename():

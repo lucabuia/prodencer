@@ -12,6 +12,6 @@ radius_Mn = 3
 # radius_F = 0.7
 
 # You can either use Abinit
-pd.project_harmonics("MnF2o_DEN.nc", "abinit", center_Mn, radius_Mn, space_group_number, output_components=False, decimals=5)
+pd.project_harmonics("MnF2o_DEN.nc", "abinit", center_Mn, radius_Mn)
 # or vasp
 # pd.project_harmonics("CHGCAR", "vasp", center_Mn, radius_Mn, space_group_number, output_components=False, decimals=5)
