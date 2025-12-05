@@ -29,6 +29,7 @@ def project_irreps(
     auto_symmetry=False,
     supercell_size=None,
     kpoint=None,
+    threshold=1e-4,
 ):
     """
     Project real-space density components onto the irreducible representations (irreps)
@@ -62,6 +63,9 @@ def project_irreps(
         for example one needs [2, 1, 1] for the k-point [0.5, 0, 0].
     kpoint : list[float], optional
         Target k-point in reciprocal coordinates. Defaults to Gamma point [0, 0, 0].
+    threshold: float, optional
+        Threshold for printing the xsf file of the irrep projection. If the projection is smaller than this 
+        value, the file is not printed.
 
     Returns
     -------
@@ -71,8 +75,7 @@ def project_irreps(
         * Little group operations
         * Irrep character tables
         * Projection weights for each density component
-    - `.xsf` files for each projected component, named
-      `{basename}_{component}_irrep{i}.xsf`.
+    - `.xsf` files for each projected component, if weight>threshold, named `{basename}_{component}_irrep{i}.xsf`.
     """
     # Handle default parameters
     if kpoint is None:
@@ -157,10 +160,11 @@ def project_irreps(
                 weight = max_projected / max_original if max_original > 0 else 0
                 
                 # Generate output filename
-                outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
-                generate_xsf_file(proj_density, lattice, outname)
-                
-                write(f"Done! Saved as {outname}")
+                if weight>threshold:
+                    outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
+                    generate_xsf_file(proj_density, lattice, outname)
+                    write(f"Done! Saved as {outname}")
+
                 write(f"Weight (max|proj|/max|orig|): {weight:.6f}\n")
             
             write("-" * 40)
