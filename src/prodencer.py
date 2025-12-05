@@ -120,6 +120,7 @@ def project_irreps(
         # --- Print symmetry elements and irrep characters ---
         write("\n=== Space Group Symmetry Operations ===")
         write(f"Space group Hall number: {spacegroup}")
+        write("(Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)")
         write(f"Total operations: {len(symm)}")
         write(f"Selected k-point: {kpoint}")
         write(f"Little group operations: {len(little_group_symm)}")
@@ -296,7 +297,7 @@ def project_harmonics(
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
         
         write(f"\n=== Space Group Hall number: {spacegroup:.0f} ===")
-        write("(Visit https://yseto.net/en/sg/sg1 for full list)")
+        write("(Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)")
 
         write("\n=== Wyckoff-equivalent positions ===")
         for i, pos in enumerate(positions):
