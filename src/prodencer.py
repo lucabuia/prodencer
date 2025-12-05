@@ -135,7 +135,7 @@ def project_irreps(
         write("\n--- Irrep Character Tables ---")
         for i, irrep in enumerate(irreps):
             characters = get_character(irrep)
-            write(f"Irrep {i+1}: {characters}")
+            write(f"Irrep {i+1}: {np.round(characters,4)}")
         
         write("\n" + "="*60)
         write("PROJECTING DENSITY ONTO IRREPS")
