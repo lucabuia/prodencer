@@ -22,8 +22,9 @@ The code contains several useful functions, but the **two main, high level funct
    *Example:* In ferroelectric ${\rm BaTiO}_3$, the primary order parameter transforms as the $\Gamma_4^-$ irrep of $m\bar{3}m$, which looks like a charge-dipole on the Ti ion.
 
 <p align="center">
-  <img src="Flowchart.png" alt="Flowchart of the two main functions" width="350"/>
+  <img src="Flowchart.png" alt="Flowchart of the two main functions" width="700"/>
 </p>
+
 ---
 
 ## Installation
