@@ -1,1 +1,4 @@
 - Make it so the .pdout doesn't get overwritten if one exists already in the directory 
+- If irrep projection is small do not print .xsf file
+- Auto detection of symmetry without having to input Hall number
+- Print label of irreps, getting them from ISOTROPY
