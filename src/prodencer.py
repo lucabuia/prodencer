@@ -308,19 +308,24 @@ def project_harmonics(
         for comp, arr in comp_arrays.items():
             coeffs_list = []
 
+            if comp=="charge":
+                sign=-1 # turn electron density into charge density
+            else:
+                sign=+1
+
             write(f"\n=== Projections for component: {comp} ===\n")
 
             for idx, pos in enumerate(positions):
                 coeffs_row = project_sphere(arr, lattice, np.asarray(pos), radius, units)
                 coeffs_list.append(coeffs_row)
 
-                s_coeff = coeffs_row[0:1]
-                p_coeff = coeffs_row[1:4]
-                d_coeff = coeffs_row[4:9]
-                f_coeff = coeffs_row[9:16]
-                g_coeff = coeffs_row[16:25]
-                h_coeff = coeffs_row[25:36]
-                i_coeff = coeffs_row[36:49]
+                s_coeff = sign*coeffs_row[0:1]
+                p_coeff = sign*coeffs_row[1:4]
+                d_coeff = sign*coeffs_row[4:9]
+                f_coeff = sign*coeffs_row[9:16]
+                g_coeff = sign*coeffs_row[16:25]
+                h_coeff = sign*coeffs_row[25:36]
+                i_coeff = sign*coeffs_row[36:49]
 
                 write(f"Position {idx+1}: {pos}")
                 write("-" * 145)
