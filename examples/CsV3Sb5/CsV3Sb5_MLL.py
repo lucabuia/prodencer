@@ -1,3 +1,10 @@
+# Example usage of project_single_irrep() for zone-boundary k-points.
+#
+# We simulated the 2x2x2 MLL phase of kagome metal CsV3Sb5, then project
+# the charge density onto the irreps of P6/mmm at the M point (M1+ irrep)
+# and the L point (L2- irrep). Additionally, we project onto the Gm5+ irrep,
+# which should be the secondary order parameter according to symmetry analysis.
+
 import prodencer as pd
 import numpy as np
 import spglib
@@ -12,7 +19,7 @@ lattice, atomic_positions, grid, charge = pd.VASP_get_density("CHGCAR")
 symmetry = spglib.get_symmetry_from_database(485) #Space group Hall number
 symm = np.array(symmetry['rotations'])
 tnons = np.array(symmetry['translations']) # Non-symmorphic translations
-SC_size = [2,2,2]
+SC_size = [2,2,2] # Supercell size compared to the primitive cell
 
 
 # Get irreps of little group at M and project onto M1+

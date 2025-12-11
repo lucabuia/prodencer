@@ -92,5 +92,5 @@ prtwf      0
 prtfsurf   1
 
 # Pseudo:
-pp_dirpath "../PawJTHv1.1/LDA/" # PAW-LDA pseudopotentials obtained from PseudoDojo
+pp_dirpath "../PawJTHv1.1/LDA/" # LDA PAW pseudopotentials JTHv1.1 obtained from PseudoDojo: https://www.pseudo-dojo.org/
 pseudos    "Mn.xml, K.xml, F.xml"
