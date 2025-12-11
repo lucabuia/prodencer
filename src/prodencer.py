@@ -308,11 +308,6 @@ def project_harmonics(
         for comp, arr in comp_arrays.items():
             coeffs_list = []
 
-            if comp=="charge":
-                sign=-1 # turn electron density into charge density
-            else:
-                sign=+1
-
             write(f"\n=== Projections for component: {comp} ===\n")
 
             for idx, pos in enumerate(positions):
@@ -454,7 +449,7 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
 
         # charge is always component 0
-        charge = density[0, :, :, :, 0] / norm_const
+        charge = -density[0, :, :, :, 0] / norm_const
 
         # ----- branch on number of components -----
 
@@ -569,16 +564,19 @@ def VASP_get_density(input="CHGCAR"):
     if ncomp == 1:
         print("CHGCAR: charge only.")
         (charge,) = densities
+        charge = -charge
         return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
 
     elif ncomp == 2:
         print("CHGCAR: collinear spin (charge + m_z).")
         charge, mz = densities
+        charge = -charge
         return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
 
     elif ncomp == 4:
         print("CHGCAR: non-collinear spin (charge + mx,my,mz).")
         charge, mx, my, mz = densities
+        charge = -charge
         return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
 
     else:
