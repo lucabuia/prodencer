@@ -5,7 +5,7 @@ import numpy as np
 center_Mn = np.array([0.5, 0.5, 0.5]) # Coordinates of the central Mn ion
 radius_Mn = 3
 
-lattice, atomic_positions, grid, charge, mx, my, mz = pd.ABINIT_get_density("MnF2o_DEN.nc")
+lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = pd.ABINIT_get_density("MnF2o_DEN.nc")
 
 # Convert center from reduced coordinated to cartesian
 center_Mn_cart = np.dot(center_Mn, lattice)

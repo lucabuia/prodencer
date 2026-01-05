@@ -11,7 +11,7 @@ import prodencer as pd
 input_file = "Fe_SOC_DEN.nc"
 dft_code = "abinit"
 
-# lattice, atomic_positions, grid, charge, mx, my, mz = pd.ABINIT_get_density(input_file)
+# lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = pd.ABINIT_get_density(input_file)
 # pd.generate_xsf_file(mx, lattice, "mx.xsf")
 # pd.generate_xsf_file(my, lattice, "my.xsf")
 # pd.generate_xsf_file(mz, lattice, "mz.xsf")

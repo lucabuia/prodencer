@@ -13,7 +13,7 @@ input_file = "GSo_DEN.nc"
 dft_code = "abinit"
 
 # # Optionally plot the charge density as a .xsf file that you can open in Vesta or XCrysDen
-# lattice, atomic_positions, grid, charge = pd.ABINIT_get_density(input_file)
+# lattice, atomic_positions, atomic_species, grid, charge = pd.ABINIT_get_density(input_file)
 # pd.generate_xsf_file(charge, lattice, "charge.xsf")
 
 

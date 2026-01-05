@@ -1,7 +1,7 @@
 import prodencer as pd
 import numpy as np
 
-lattice, atomic_positions, grid, charge, mx, my, mz = pd.ABINIT_get_density("CrSbo_DEN.nc")
+lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = pd.ABINIT_get_density("CrSbo_DEN.nc")
 mz, new_c = pd.translate_density(mz, np.array([0, 0, 0.5]))
 
 
