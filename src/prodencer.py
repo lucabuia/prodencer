@@ -897,6 +897,86 @@ def translate_density(f, center_red):
 
     return new_f, new_center_red
 
+import numpy as np
+
+
+def translate_density_to_point(f, source_red, dest_red):
+    """
+    Periodically translate density so that source_red maps onto dest_red.
+
+    Parameters
+    ----------
+    f : numpy.ndarray
+        3D periodic density grid
+    source_red : array-like (3,)
+        fractional coordinates of point to move
+    dest_red : array-like (3,)
+        fractional coordinates of destination point
+
+    Returns
+    -------
+    new_f : numpy.ndarray
+        shifted density
+    new_source_red : tuple
+        new fractional coordinates of the original continuous point
+    """
+
+    source_red = np.asarray(source_red, dtype=float)
+    dest_red   = np.asarray(dest_red,   dtype=float)
+
+    ng1, ng2, ng3 = f.shape
+    d = np.array([1/ng1, 1/ng2, 1/ng3])
+
+    src_idx = np.mod(np.round(source_red / d).astype(int), f.shape)
+    src_grid = src_idx * d
+
+    delta = source_red - src_grid
+
+    dest_idx = np.mod(np.round(dest_red / d).astype(int), f.shape)
+
+    shifts = (dest_idx - src_idx) % f.shape
+
+    new_f = np.roll(f, shift=tuple(shifts), axis=(0,1,2))
+
+    new_source_red = tuple(dest_idx * d + delta)
+
+    return new_f, new_source_red
+
+
+def expand_density_supercell(density, Nx, Ny, Nz):
+    """
+    Periodically tile a 3D density onto a supercell.
+
+    Parameters
+    ----------
+    density : numpy.ndarray
+        Shape (nx, ny, nz) density defined in a primitive cell
+    Nx, Ny, Nz : int
+        Number of repetitions along each lattice direction
+
+    Returns
+    -------
+    new_density : numpy.ndarray
+        Shape (nx*Nx, ny*Ny, nz*Nz)
+    """
+
+    nx, ny, nz = density.shape
+
+    new_density = np.empty((nx*Nx, ny*Ny, nz*Nz), dtype=density.dtype)
+
+    for ix in range(Nx):
+        for iy in range(Ny):
+            for iz in range(Nz):
+                new_density[
+                    ix*nx:(ix+1)*nx,
+                    iy*ny:(iy+1)*ny,
+                    iz*nz:(iz+1)*nz
+                ] = density
+
+    return new_density
+
+
+
 def generate_xsf_file(scalar_field, lattice, output_file):
     """
     Generate an XSF file from a scalar field with proper periodic boundary conditions.
@@ -1433,7 +1513,7 @@ def xrd_powder(charge, lattice, lambda_x=1.5406, do_plot=True):
     return centers_deg, I_binned
 
 
-# import mplcursors
+import mplcursors
 def xrd_crystal(charge, lattice, plane='001', shift=0.0, do_plot=True):
     Nx, Ny, Nz = charge.shape
 
@@ -1503,7 +1583,7 @@ def xrd_crystal(charge, lattice, plane='001', shift=0.0, do_plot=True):
             # Plot Brillouin Zone boundaries
             plot_brillouin_zone_2d(astar[0:2], bstar[0:2], shift*cstar[0:2])
             
-            # mplcursors.cursor(hover=True)
+            mplcursors.cursor(hover=True)
 
             plt.colorbar(scatter, label="Intensity")
             plt.xlabel(f"H in [H K L={shift:.0f}] (Å⁻¹)")
