@@ -27,7 +27,7 @@ for n in range(9):
     input_file = f"doping_cubic/{2*n}_CHGCAR"
     dft_code = "vasp"
 
-    lattice, atomic_positions, grid, charge = pd.VASP_get_density(input_file)
+    lattice, atomic_positions, atomic_species, grid, charge = pd.VASP_get_density(input_file)
 #     if n==0 or n==8:
 #         pd.generate_xsf_file(charge, lattice, f"32p{2*n}_charge_cubic.xsf")
 

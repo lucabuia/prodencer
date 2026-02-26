@@ -485,11 +485,11 @@ def VASP_get_density(input="CHGCAR"):
 
     Returns:
       - If the file contains only the charge density (non-magnetic calculation):
-          lattice, atomic_positions, (ng1, ng2, ng3), charge
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
       - If the file contains charge + 1 spin components (magnetic collinear calculation, ISPIN=2):
-          lattice, atomic_positions, (ng1, ng2, ng3), charge, mz
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
       - If the file contains charge + 3 spin components (magnetic non-collinear calculation, LNONCOLLINEAR=.TRUE.):
-          lattice, atomic_positions, (ng1, ng2, ng3), charge, mx, my, mz
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
     """
     if not os.path.isfile(input):
         raise FileNotFoundError("CHGCAR file not found")
