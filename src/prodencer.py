@@ -897,8 +897,6 @@ def translate_density(f, center_red):
 
     return new_f, new_center_red
 
-import numpy as np
-
 
 def translate_density_to_point(f, source_red, dest_red):
     """
