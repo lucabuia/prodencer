@@ -1,7 +1,7 @@
 Metadata-Version: 2.4
 Name: prodencer
-Version: 0.0.1
-Summary: Project charge/spin Densities onto Cubic/tesseral harmonics and point-group Representations.
+Version: 1.0
+Summary: Project charge/spin Densities onto Cubic/tesseral harmonics and space-group Representations.
 Author: Luca Buiarelli
 License: CC0
 Project-URL: homepage, https://github.com/lucabuia/prodencer
@@ -31,14 +31,30 @@ The code contains several useful functions, but the **two main, high level funct
 
 1. **`project_harmonics`**  
    Projects the charge/spin density inside spheres around atoms onto **atomic multipoles** (cubic/tesseral harmonics).  
-   *Example:* In *d-wave altermagnetic MnF₂*, the magnetic dipoles *Mz* are out of phase, but the magnetic octupoles *xyMz* are in phase.
+   *Example:* In d-wave altermagnetic ${\rm MnF}_2$, the magnetic dipoles $M_z$ are out of phase, but the magnetic octupoles $xyM_z$ are in phase.
 
 2. **`project_irreps`**  
    Projects the charge/spin density of a **distorted cell** (either primitive or supercell) onto the **irreducible representations** of the parent space group at any commensurate k-point (via `spglib` and `spgrep`).  
-   *Example:* In ferroelectric BaTiO3, the primary order parameter transforms as the \Gamma_4^- irrep of m-3m, which looks like a charge-dipole on the Ti ion.
+   *Example:* In ferroelectric ${\rm BaTiO}_3$, the primary order parameter transforms as the $\Gamma_4^-$ irrep of $m\bar{3}m$, which looks like a charge-dipole on the Ti ion.
+
+<p align="center">
+  <img src="Flowchart.png" alt="Flowchart of the two main functions" width="700"/>
+</p>
+
+---
+
+## Installation
+
+1. Clone this repository.
+2. Move into the project’s root directory (the one containing `pyproject.toml`).
+3. Install the package in editable mode:
+
+```bash
+pip install -e .
+```
 
 ---
 
 ##
-2025 – Luca Buiarelli, Hyeonseo Park, Seongjoo Jung and Turan Birol  
+2025 – Luca Buiarelli, Seongjoo Jung, Hyeonseo Park and Turan Birol  
 University of Minnesota, CEMS

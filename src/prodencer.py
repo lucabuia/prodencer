@@ -1,4 +1,4 @@
-# ProDenCeR v1.0
+# ProDenCeR v1.1
 # Luca Buiarelli, Seongjoo Jung, Hyeonseo Park and Turan Birol
 # 2025
 # Birol Group, CEMS, Univeristy of Minnesota, Minneapolis, USA
@@ -21,15 +21,20 @@ from numpy.fft import fftn, fftshift
 import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi, voronoi_plot_2d
 
-
 def project_irreps(
     density_file,
     dft_code,
     spacegroup=1,
+    output="xsf",
+    basename=None,
     auto_symmetry=False,
     supercell_size=None,
     kpoint=None,
     threshold=1e-4,
+    manual_irreps=None,
+    manual_symm=None,
+    manual_tnons=None,
+    manual_phase=None,
 ):
     """
     Project real-space density components onto the irreducible representations (irreps)
@@ -53,6 +58,10 @@ def project_irreps(
     spacegroup : int
         Hall number specifying the space group symmetry. Default is 1.
         For full list see: https://yseto.net/en/sg/sg1
+    output : str
+        Output format for projected density, xsf or vasp. Default is xsf
+    basename: str
+        Base name for output files. Default is the directory name.    
     auto_symmetry: bool, optional
         Automatic detection of space group Hall number. May not be useful in many cases, since this function
         is thought to be used to project onto the irreps of the PARENT high-symmetry space group. If you use
@@ -61,12 +70,21 @@ def project_irreps(
         Size of the supercell used for projection in each lattice direction,
         defaults to [1, 1, 1]. Needed for commensurate points away from Gamma,
         for example one needs [2, 1, 1] for the k-point [0.5, 0, 0].
+        Currently not used for manual mode.
     kpoint : list[float], optional
         Target k-point in reciprocal coordinates. Defaults to Gamma point [0, 0, 0].
     threshold: float, optional
         Threshold for printing the xsf file of the irrep projection. If the projection is smaller than this 
         value, the file is not printed.
-
+    manual_irreps : list[list[float]], optional
+        A list of character tables to use for projection manually.
+    manual_symm : list[list[list[int]]], optional
+        A manual list of rotation matrices (3x3) for the little group.
+    manual_tnons : list[list[float]], optional
+        A manual list of fractional translation vectors (1x3) for the little group.
+    manual_phase : list[int], optional
+        A manual list of phase for manual_tnons at corresponding wavevector.
+        
     Returns
     -------
     - A `.pdout` text file containing:
@@ -89,57 +107,83 @@ def project_irreps(
     # load density explicitly according to dft_code
     lattice, atomic_positions, atomic_species, grid, comp_arrays = load_density_file(density_file, dft_code)
 
-    # If user has not set space group number and set auto_symmetry on, then find symmetry with spglib
-    # Not suggested since this function is thought to be used to project onto irreps of parent phase
-    if auto_symmetry and spacegroup == 1:
+    if auto_symmetry == True and spacegroup == 1:
         spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
+    elif auto_symmetry == True and spacegroup != 1:
+        raise ValueError("auto_symmetry is turned on, but spacegroup is not 1. Please set spacegroup=1 to enable auto_symmetry, or set auto_symmetry=False to specify spacegroup manually.")
 
     # give output file name
-    input_basename = get_output_basename()
-    output_file = input_basename + ".pdout"
+    if basename == None:
+        input_basename = get_output_basename()
+    else:
+        input_basename = basename
+    output_file = input_basename + "_irreps.pdout"
 
     # helper function to print to screen and file
     def write(msg):
         print(msg)
         f.write(msg + "\n")
 
-    symmetry = spglib.get_symmetry_from_database(spacegroup)
-    symm = np.array(symmetry['rotations'])
-    tnons = np.array(symmetry['translations']) # Non-symmorphic translations
-    irreps, mapping_little_group = get_spacegroup_irreps_from_primitive_symmetry(symm, tnons, kpoint)
-    little_group_symm = symm[mapping_little_group]
-    little_group_tnons = tnons[mapping_little_group]
+    # --- DETERMINE SYMMETRY OPERATIONS ---
+    is_manual = (manual_symm is not None and manual_tnons is not None and manual_irreps is not None and manual_phase is not None)
+
+    if is_manual:
+        # Manual Mode: Bypass spglib and spgrep completely
+        little_group_symm = np.asarray(manual_symm)
+        little_group_tnons = np.asarray(manual_tnons)
+        irreps_chars = [np.array(chars) for chars in manual_irreps]
+        phase = np.asarray(manual_phase)
+    else:
+        # Automatic Mode: spglib + spgrep
+        symmetry = spglib.get_symmetry_from_database(spacegroup)
+        symm = np.array(symmetry['rotations'])
+        tnons = np.array(symmetry['translations']) # Non-symmorphic translation
+        irreps, mapping_little_group = get_spacegroup_irreps_from_primitive_symmetry(symm, tnons, kpoint)
+        little_group_symm = symm[mapping_little_group]
+        little_group_tnons = tnons[mapping_little_group]
+        irreps_chars = [get_character(irrep) for irrep in irreps]
     
     with open(output_file, "w") as f:
 
         # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Bohr radii) ===")
+        if dft_code == "vasp":
+            write("\n=== Lattice vectors (Angstroms) ===")
+        else:
+            write("\n=== Lattice vectors (Bohr radii) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
         
         # --- Print symmetry elements and irrep characters ---
         write("\n=== Space Group Symmetry Operations ===")
-        write(f"Space group Hall number: {spacegroup}")
-        write("(Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)")
-        write(f"Total operations: {len(symm)}")
-        write(f"Selected k-point: {kpoint}")
-        write(f"Little group operations: {len(little_group_symm)}")
-        write(f"Number of irreps: {len(irreps)}")
-        
-        write("\n--- Little group symmetry Operations (Rotation + Non-symmorphic Translation) ---")
-        for i, (rot, trans) in enumerate(zip(little_group_symm, little_group_tnons)):
-            write(f"Operation {i+1}:")
-            write(f"  Rotation:\n{rot}")
-            write(f"  Translation: {trans}")
-            write("")
+        if is_manual:
+            write("Mode: FULLY MANUAL (spglib bypassed)")
+            write(f"Provided manual operations: {len(little_group_symm)}")
+            write(f"Selected phase: {phase}")
+        else:
+            write(f"Space group Hall number: {spacegroup}")
+            write("(Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)")
+            write(f"Total operations: {len(symm)}")
+            write(f"Little group operations: {len(little_group_symm)}")
+            write(f"Selected k-point: {kpoint}")
+
+            write(f"Number of irreps: {len(irreps_chars)}")
+            
+            write("\n--- Little group symmetry Operations (Rotation + Non-symmorphic Translation) ---")
+            for i, (rot, trans) in enumerate(zip(little_group_symm, little_group_tnons)):
+                write(f"Operation {i+1}:")
+                write(f"  Rotation:\n{rot}")
+                write(f"  Translation: {trans}")
+                write("")
 
         write("\n--- Irrep Character Tables ---")
-        for i, irrep in enumerate(irreps):
-            characters = get_character(irrep)
+        for i, characters in enumerate(irreps_chars):
             write(f"Irrep {i+1}: {np.round(characters,4)}")
         
         write("\n" + "="*60)
-        write("PROJECTING DENSITY ONTO IRREPS")
+        if is_manual:
+            write("PROJECTING DENSITY ONTO IRREPS (MANUAL)")
+        else:
+            write("PROJECTING DENSITY ONTO IRREPS")
         write("="*60)
 
         # --- Project all components onto all irreps ---
@@ -150,23 +194,38 @@ def project_irreps(
             max_original = np.max(np.abs(density))
             write(f"Max absolute value of original {comp_name}: {max_original:.6f}\n")
             
-            for i, irrep in enumerate(irreps):
+            for i, char_table in enumerate(irreps_chars):
                 write(f"Projecting onto irrep {i+1}...")
                 
-                char_table = get_character(irrep)
-                proj_density = project_single_irrep(density, little_group_symm, little_group_tnons, char_table, supercell_size, kpoint)
+                if manual_irreps:
+                    proj_density = project_single_irrep_manual(
+                        density, little_group_symm, little_group_tnons, char_table, phase
+                    )
+
+                else:
+                    proj_density = project_single_irrep(
+                        density, little_group_symm, little_group_tnons, char_table, supercell_size, kpoint
+                    )
                 
                 # Calculate weight: max(projected) / max(original)
                 max_projected = np.max(np.abs(proj_density))
                 weight = max_projected / max_original if max_original > 0 else 0
                 
                 # Generate output filename
-                if weight>threshold:
-                    outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
-                    generate_xsf_file(proj_density, lattice, outname)
-                    write(f"Done! Saved as {outname}")
+                if weight > threshold:
+                    if output == "xsf":
+                        outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
+                        generate_xsf_file(proj_density, lattice, outname)
+                    elif output == "vasp":
+                        outname = f"{input_basename}_{comp_name}_irrep{i+1}.vasp"
+                        VASP_write_charge(lattice, grid, proj_density, input=density_file, output=outname)
+                    else:
+                        write(f"Output file format not recognized and defaulting to .xsf")
+                        outname = f"{input_basename}_{comp_name}_irrep{i+1}.xsf"
+                        generate_xsf_file(proj_density, lattice, outname)
 
-                write(f"Weight (max|proj|/max|orig|): {weight:.6f}\n")
+                    write(f"Done! Saved as {outname}")
+                    write(f"Weight (max|proj|/max|orig|): {weight:.6f}\n")
             
             write("-" * 40)
         
@@ -179,7 +238,7 @@ def project_harmonics(
     center,
     radius,
     spacegroup=1,
-    auto_symmetry=True,
+    auto_symmetry=False,
     output_components=False,
     decimals=4,
     units="multi"
@@ -241,7 +300,7 @@ def project_harmonics(
         spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
 
     input_basename = get_output_basename()
-    output_file = input_basename + ".pdout"
+    output_file = input_basename + "_harmonics.pdout"
 
     center = np.asarray(center)
     positions = np.round(wyckoff(center, spacegroup), 5)
@@ -292,7 +351,10 @@ def project_harmonics(
     with open(output_file, "w") as f:
 
         # --- Print lattice and positions ---
-        write("\n=== Lattice vectors (Bohr radii) ===")
+        if dft_code == "vasp":
+            write("\n=== Lattice vectors (Angstroms) ===")
+        else:
+            write("\n=== Lattice vectors (Bohr radii) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
         
@@ -504,8 +566,8 @@ def VASP_get_density(input="CHGCAR"):
         for i in range(3):
             lattice[i] = np.array(chgcar.readline().split(), float)
 
-        # Convert VASP Å → Bohr
-        lattice = lattice / 0.5291772083
+        # # Convert VASP Å → Bohr
+        # lattice = lattice / 0.5291772083
 
         # --- atom info ---
         atom_types = chgcar.readline().split()
@@ -584,6 +646,10 @@ def VASP_get_density(input="CHGCAR"):
 
 
 def VASP_write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"):
+
+    charge = charge.flatten(order='F')
+    charge *= np.prod(grid)
+
     with open(output, "w") as f:
 
         chgcar = open(input, 'r')
@@ -595,8 +661,6 @@ def VASP_write_charge(lattice, grid, charge, input="CHGCAR", output="new_CHGCAR"
                 line = chgcar.readline()
                 f.write(line)
                 break
-
-        charge = charge.flatten(order='F')
         
         for i in range(int(grid[0]*grid[1]*grid[2]/5)):
             f.write( ' ' + ' '.join(map("{:.10E}".format, charge[5*i:5*i+5])) + '\n' )
@@ -670,6 +734,9 @@ def project_sphere(density, lattice, center_red, radius, units="multi"):
 
     # Shift density so the atomic center is at the center of the unit cell
     density, center_red = translate_density(density, center_red)
+
+    # Charge density is negative of electron density!
+    density = -density
 
     # Convert center from reduced to cartesian coordinates
     center = np.dot(center_red, lattice)
@@ -1389,6 +1456,84 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
 
     return proj
 
+
+def project_single_irrep_manual(f, symm, tnons, char_table, phase):
+    """
+    Project a charge or spin density from a distorted (primitive or super-) cell onto the 
+    irreducible representations of the parent space group's primitive cell with manually provided parameters
+    Use this function when primitive cell and conventional cell differs, for non-integer multiple supercells
+    or for faster results
+    
+    Parameters
+    ----------
+    f : ndarray
+        3D array (Nx, Ny, Nz) representing the charge or spin density on a real-space grid.
+    symm : ndarray
+        Array of shape (N_symm, 3, 3) containing rotation/mirror matrices (integer values).
+    tnons : ndarray
+        Array of shape (N_trans, 3) containing fractional translations associated with each symmetry operation.
+    char_table : ndarray
+        1D array of length N_symm giving the character of each symmetry operation for the target irrep.
+    phase : array-like, optional
+        1D array of shape (3,) representing the k-point in fractional coordinates 
+        (relative to the PRIMITIVE reciprocal lattice). If None, uses [0, 0, 0].
+
+    Returns
+    -------
+    proj : ndarray
+        3D array (Nx, Ny, Nz) of the projected charge or spin density.
+    """
+    
+    grid = f.shape  # Grid dimensions (Nx, Ny, Nz)
+
+    # Initialize projected density
+    proj = np.zeros(f.shape)
+
+    # Loop over supercell translations
+    for t in range(tnons.shape[0]):
+        # Loop over all symmetry operations in the parent space group
+        for s in range(symm.shape[0]):
+            # Generate grid of integer indices (i, j, k)
+            i, j, k = np.meshgrid(
+                np.arange(grid[0]),
+                np.arange(grid[1]),
+                np.arange(grid[2]),
+                indexing='ij'
+            )
+
+            # Stack indices into vectors of shape (Nx, Ny, Nz, 3)
+            v = np.stack((i, j, k), axis=-1)
+
+            # Apply rotation to grid points
+            v_new = np.tensordot(v, symm[s], axes=([3], [1])).astype(float)
+
+            # Apply translation (tnons) and supercell translation (translations_SC_supercell[t])
+            # Use SUPERCELl coordinates for the grid transformation
+            v_new += (tnons[t]) * grid
+
+            # Wrap indices back into grid range using modulo
+            i_new = v_new[..., 0] % grid[0]
+            j_new = v_new[..., 1] % grid[1]
+            k_new = v_new[..., 2] % grid[2]
+
+            # Convert to integer indices
+            i_new = i_new.astype(int)
+            j_new = j_new.astype(int)
+            k_new = k_new.astype(int)
+
+            # Apply projection formula:
+            proj[i, j, k] += np.real(
+                phase[t] * char_table[s] /
+                (symm.shape[0] * tnons.shape[0]) *
+                f[i_new, j_new, k_new]
+            )
+
+    return proj
+
+
+def project_irrep_manual(f, symm, tnons, char_table, supercell_size=None, kpoint=None):
+    proj = 0
+    return proj
 
 def get_output_basename():
     """

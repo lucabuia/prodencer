@@ -1,0 +1,28 @@
+
+=== Lattice vectors (Angstroms) ===
+Vector 1: [5.020216, 0.000000, 0.000000]
+Vector 2: [0.000000, 5.020216, 0.000000]
+Vector 3: [0.000000, 0.000000, 5.020216]
+
+=== Space Group Symmetry Operations ===
+Mode: FULLY MANUAL (spglib bypassed)
+Provided manual operations: 16
+Selected phase: [1 1 1 1]
+
+--- Irrep Character Tables ---
+Irrep 1: [ 1  1  1  1 -1 -1 -1 -1 -1 -1 -1 -1  1  1  1  1]
+
+============================================================
+PROJECTING DENSITY ONTO IRREPS (MANUAL)
+============================================================
+
+=== Projecting charge component ===
+Max absolute value of original charge: 0.000594
+
+Projecting onto irrep 1...
+Done! Saved as HfO2_I4mmm_charge_irrep1.vasp
+Weight (max|proj|/max|orig|): 0.000002
+
+----------------------------------------
+
+All projections completed successfully!
