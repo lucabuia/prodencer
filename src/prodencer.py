@@ -20,6 +20,7 @@ from spgrep.representation import get_character
 from numpy.fft import fftn, fftshift
 import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi, voronoi_plot_2d
+from scipy.ndimage import zoom
 
 def project_irreps(
     density_file,
@@ -431,7 +432,7 @@ def load_density_file(density_file, dft_code):
         
     Returns
     -------
-    tuple: (lattice, grid, comp_arrays)
+    tuple: (lattice, atomic_positions, atomic_species, grid, comp_arrays)
         comp_arrays is a dict with keys like 'charge', 'mx', etc.
     """
     ft = dft_code.lower()
@@ -541,7 +542,7 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
             pass
 
 
-def VASP_get_density(input="CHGCAR"):
+def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
     """
     Read a VASP density CHGCAR file.
 
@@ -566,8 +567,9 @@ def VASP_get_density(input="CHGCAR"):
         for i in range(3):
             lattice[i] = np.array(chgcar.readline().split(), float)
 
-        # # Convert VASP Å → Bohr
-        # lattice = lattice / 0.5291772083
+        if convert_to_bohr:
+            # Convert VASP Å → Bohr
+            lattice = lattice / 0.5291772083
 
         # --- atom info ---
         atom_types = chgcar.readline().split()
@@ -1040,6 +1042,116 @@ def expand_density_supercell(density, Nx, Ny, Nz):
 
     return new_density
 
+
+def interpolate_3d(arr, u, v, w):
+    """
+    Interpolate a 3D array onto a finer grid with factors u, v, w.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input 3D array of shape (N, M, L).
+    u, v, w : int
+        Positive integers specifying the upsampling factors along each dimension.
+
+    Returns
+    -------
+    np.ndarray
+        Interpolated array of shape (u * N, v * M, w * L).
+
+    Notes
+    -----
+    This function uses scipy.ndimage.zoom with order=1 (trilinear interpolation).
+    For higher‑order interpolation, change the `order` parameter (e.g., order=3 for cubic).
+    """
+    # Validate inputs
+    if arr.ndim != 3:
+        raise ValueError("Input array must be 3‑dimensional")
+    if not all(isinstance(f, int) and f > 0 for f in (u, v, w)):
+        raise ValueError("Factors u, v, w must be positive integers")
+
+    # Perform interpolation
+    zoom_factors = (u, v, w)
+    result = zoom(arr, zoom_factors, order=3)
+
+    return result
+
+
+def create_gaussian_ball(density, lattice, center_red, radius, n_images=1):
+    """
+    Create a 3D Gaussian ball on a grid, with periodic boundary conditions.
+
+    The Gaussian is centered at the given reduced coordinate and summed over
+    periodic images of the unit cell.  By default, images with shifts of
+    -1, 0, or 1 lattice vectors in each direction are included (27 cells).
+
+    Parameters
+    ----------
+    density : np.ndarray, shape (N, M, L)
+        3D array whose shape defines the grid dimensions.
+    lattice : np.ndarray, shape (3, 3)
+        Lattice vectors as rows of a 3x3 matrix.
+    center_red : array_like, shape (3,)
+        Center of the Gaussian in reduced coordinates (relative to lattice vectors).
+    radius : float
+        Standard deviation of the Gaussian (in the same units as lattice vectors).
+    n_images : int, optional
+        Number of neighbor cells to include in each direction.
+        The total number of images is (2*n_images+1)^3.
+        Default is 1, which includes the nearest 26 neighbors + the central cell.
+
+    Returns
+    -------
+    np.ndarray, shape (N, M, L)
+        Gaussian values on the grid, periodic over the unit cell.
+
+    Notes
+    -----
+    The grid is assumed to span the unit cell from (0,0,0) to the lattice vectors.
+    The function sums contributions from all images with shifts
+    (nx, ny, nz) where each component ranges from -n_images to n_images.
+    """
+    # --- Input validation ---
+    center_red = np.asarray(center_red)
+    if center_red.shape != (3,):
+        raise ValueError("center_red must have exactly 3 components")
+    if radius <= 0:
+        raise ValueError("radius must be positive")
+    if not isinstance(n_images, int) or n_images < 0:
+        raise ValueError("n_images must be a non‑negative integer")
+    lattice = np.asarray(lattice)
+    if lattice.shape != (3, 3):
+        raise ValueError("lattice must be a 3x3 array")
+
+    # --- Cartesian center of the original cell ---
+    center0 = np.dot(center_red, lattice)   # assumes lattice vectors are rows
+
+    # --- Real-space grid coordinates (within the unit cell) ---
+    ng1, ng2, ng3 = density.shape
+    rx, ry, rz = real_space_grid(lattice, ng1, ng2, ng3)  # shape (N, M, L) each
+
+    # --- Prepare the result array ---
+    ball = np.zeros_like(density, dtype=float)
+
+    # --- Loop over periodic images ---
+    # Shifts in reduced coordinates: (nx, ny, nz) integer triples
+    for nx in range(-n_images, n_images + 1):
+        for ny in range(-n_images, n_images + 1):
+            for nz in range(-n_images, n_images + 1):
+                # Cartesian shift = nx * a + ny * b + nz * c
+                shift_cart = nx * lattice[0] + ny * lattice[1] + nz * lattice[2]
+                center_img = center0 + shift_cart
+
+                # Squared distance from this image center to every grid point
+                dx = rx - center_img[0]
+                dy = ry - center_img[1]
+                dz = rz - center_img[2]
+                r2 = dx*dx + dy*dy + dz*dz
+
+                # Add Gaussian contribution
+                ball += np.exp(-r2 / (2 * radius * radius))
+
+    return ball
 
 
 def generate_xsf_file(scalar_field, lattice, output_file):
