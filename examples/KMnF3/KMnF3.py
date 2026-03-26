@@ -14,7 +14,7 @@ import numpy as np
 space_group_number = 425 # I4/mcm, for full list of Hall numbers check https://yseto.net/en/sg/sg1
 
 # Mn ion
-center_Mn = np.array([0, 0, 0]) # Coordinates of one Mn ion
+center_Mn = np.array([0.2257, 0.7257, 0.5]) # Coordinates of one Mn ion
 radius_Mn = 2.11 # In units of Bohr
 
 # Use Abinit
