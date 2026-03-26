@@ -8,8 +8,8 @@ Vector 3: [0.000000, 0.000000, 7.540007]
 Space group Hall number: 517
 (Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)
 Total operations: 48
-Selected k-point: [0. 0. 0.]
 Little group operations: 48
+Selected k-point: [0. 0. 0.]
 Number of irreps: 10
 
 --- Little group symmetry Operations (Rotation + Non-symmorphic Translation) ---
@@ -423,34 +423,20 @@ Done! Saved as BaTiO3_charge_irrep1.xsf
 Weight (max|proj|/max|orig|): 0.935805
 
 Projecting onto irrep 2...
-Weight (max|proj|/max|orig|): 0.000000
-
 Projecting onto irrep 3...
-Weight (max|proj|/max|orig|): 0.000000
-
 Projecting onto irrep 4...
-Weight (max|proj|/max|orig|): 0.000000
-
 Projecting onto irrep 5...
 Done! Saved as BaTiO3_charge_irrep5.xsf
 Weight (max|proj|/max|orig|): 0.033885
 
 Projecting onto irrep 6...
-Weight (max|proj|/max|orig|): 0.000000
-
 Projecting onto irrep 7...
-Weight (max|proj|/max|orig|): 0.000000
-
 Projecting onto irrep 8...
 Done! Saved as BaTiO3_charge_irrep8.xsf
 Weight (max|proj|/max|orig|): 0.098358
 
 Projecting onto irrep 9...
-Weight (max|proj|/max|orig|): 0.000000
-
 Projecting onto irrep 10...
-Weight (max|proj|/max|orig|): 0.000000
-
 ----------------------------------------
 
 All projections completed successfully!
