@@ -13,7 +13,7 @@ from spgrep.representation import get_character
 
 
 # Import density from VASP CHGCAR file
-lattice, atomic_positions, grid, charge = pd.VASP_get_density("CHGCAR")
+lattice, atomic_positions, atomic_species, grid, charge = pd.VASP_get_density("CHGCAR")
 
 # Import symmetries and irreps from spglib and spgrep
 symmetry = spglib.get_symmetry_from_database(485) #Space group Hall number
