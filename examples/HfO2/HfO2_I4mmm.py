@@ -2,7 +2,7 @@ import prodencer as pd
 import numpy as np
 
 space_group_number = 424 # I4/mmm
-radius_O = 1.32 # Angstrom
+radius_O = 1.20 # Angstrom
 
 # Oxygen atom coordinates in reduced coordinates
 center_O = np.array([0.25, 0.25, 0.25])

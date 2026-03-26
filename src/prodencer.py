@@ -241,7 +241,8 @@ def project_harmonics(
     auto_symmetry=False,
     output_components=False,
     decimals=4,
-    units="multi"
+    units="multi",
+    basename=None,
 ):
     """
     Project real-space density components onto tesseral harmonics 
@@ -281,6 +282,8 @@ def project_harmonics(
     decimals : int, optional
         Number of decimal places to use when formatting printed results. 
         Default is 4.
+    basename: str, optional
+        Base name for output files. Default is the directory name + _harmonics.pdout.
 
     Returns
     -------
@@ -299,8 +302,11 @@ def project_harmonics(
     if auto_symmetry and spacegroup == 1:
         spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
 
-    input_basename = get_output_basename()
-    output_file = input_basename + "_harmonics.pdout"
+    if basename == None:
+        input_basename = get_output_basename()
+        output_file = input_basename + "_harmonics.pdout"
+    else:
+        output_file = basename
 
     center = np.asarray(center)
     positions = np.round(wyckoff(center, spacegroup), 5)
