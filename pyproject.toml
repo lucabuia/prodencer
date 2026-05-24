@@ -8,12 +8,18 @@ version = "1.0"
 description = "Project charge/spin Densities onto Cubic/tesseral harmonics and space-group Representations."
 readme = "README.md"
 requires-python = ">=3.8"
-authors = [{name="Luca Buiarelli"}]
+authors = [
+    {name="Luca Buiarelli"},
+    {name="Seongjoo Jung"},
+    {name="Hyeonseo Park"},
+    {name="Turan Birol"}
+]
 license = {text = "CC0"}
 dependencies = [
     "numpy",
     "scipy",
     "matplotlib",
+    "mplcursors",
     "spglib",
     "spgrep",
     "netCDF4",
