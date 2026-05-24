@@ -1,0 +1,442 @@
+
+=== Lattice vectors (Bohr radii) ===
+Vector 1: [7.540007, 0.000000, 0.000000]
+Vector 2: [0.000000, 7.540007, 0.000000]
+Vector 3: [0.000000, 0.000000, 7.540007]
+
+=== Space Group Symmetry Operations ===
+Space group Hall number: 517
+(Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)
+Total operations: 48
+Little group operations: 48
+Selected k-point: [0. 0. 0.]
+Number of irreps: 10
+
+--- Little group symmetry Operations (Rotation + Non-symmorphic Translation) ---
+Operation 1:
+  Rotation:
+[[1 0 0]
+ [0 1 0]
+ [0 0 1]]
+  Translation: [0. 0. 0.]
+
+Operation 2:
+  Rotation:
+[[-1  0  0]
+ [ 0 -1  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 3:
+  Rotation:
+[[ 0 -1  0]
+ [ 1  0  0]
+ [ 0  0  1]]
+  Translation: [0. 0. 0.]
+
+Operation 4:
+  Rotation:
+[[ 0  1  0]
+ [-1  0  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 5:
+  Rotation:
+[[-1  0  0]
+ [ 0 -1  0]
+ [ 0  0  1]]
+  Translation: [0. 0. 0.]
+
+Operation 6:
+  Rotation:
+[[ 1  0  0]
+ [ 0  1  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 7:
+  Rotation:
+[[ 0  1  0]
+ [-1  0  0]
+ [ 0  0  1]]
+  Translation: [0. 0. 0.]
+
+Operation 8:
+  Rotation:
+[[ 0 -1  0]
+ [ 1  0  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 9:
+  Rotation:
+[[ 1  0  0]
+ [ 0 -1  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 10:
+  Rotation:
+[[-1  0  0]
+ [ 0  1  0]
+ [ 0  0  1]]
+  Translation: [0. 0. 0.]
+
+Operation 11:
+  Rotation:
+[[ 0 -1  0]
+ [-1  0  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 12:
+  Rotation:
+[[0 1 0]
+ [1 0 0]
+ [0 0 1]]
+  Translation: [0. 0. 0.]
+
+Operation 13:
+  Rotation:
+[[-1  0  0]
+ [ 0  1  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 14:
+  Rotation:
+[[ 1  0  0]
+ [ 0 -1  0]
+ [ 0  0  1]]
+  Translation: [0. 0. 0.]
+
+Operation 15:
+  Rotation:
+[[ 0  1  0]
+ [ 1  0  0]
+ [ 0  0 -1]]
+  Translation: [0. 0. 0.]
+
+Operation 16:
+  Rotation:
+[[ 0 -1  0]
+ [-1  0  0]
+ [ 0  0  1]]
+  Translation: [0. 0. 0.]
+
+Operation 17:
+  Rotation:
+[[0 0 1]
+ [1 0 0]
+ [0 1 0]]
+  Translation: [0. 0. 0.]
+
+Operation 18:
+  Rotation:
+[[ 0  0 -1]
+ [-1  0  0]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 19:
+  Rotation:
+[[ 0  0  1]
+ [ 0 -1  0]
+ [ 1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 20:
+  Rotation:
+[[ 0  0 -1]
+ [ 0  1  0]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 21:
+  Rotation:
+[[ 0  0  1]
+ [-1  0  0]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 22:
+  Rotation:
+[[ 0  0 -1]
+ [ 1  0  0]
+ [ 0  1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 23:
+  Rotation:
+[[ 0  0  1]
+ [ 0  1  0]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 24:
+  Rotation:
+[[ 0  0 -1]
+ [ 0 -1  0]
+ [ 1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 25:
+  Rotation:
+[[ 0  0 -1]
+ [ 1  0  0]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 26:
+  Rotation:
+[[ 0  0  1]
+ [-1  0  0]
+ [ 0  1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 27:
+  Rotation:
+[[ 0  0 -1]
+ [ 0 -1  0]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 28:
+  Rotation:
+[[0 0 1]
+ [0 1 0]
+ [1 0 0]]
+  Translation: [0. 0. 0.]
+
+Operation 29:
+  Rotation:
+[[ 0  0 -1]
+ [-1  0  0]
+ [ 0  1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 30:
+  Rotation:
+[[ 0  0  1]
+ [ 1  0  0]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 31:
+  Rotation:
+[[ 0  0 -1]
+ [ 0  1  0]
+ [ 1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 32:
+  Rotation:
+[[ 0  0  1]
+ [ 0 -1  0]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 33:
+  Rotation:
+[[0 1 0]
+ [0 0 1]
+ [1 0 0]]
+  Translation: [0. 0. 0.]
+
+Operation 34:
+  Rotation:
+[[ 0 -1  0]
+ [ 0  0 -1]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 35:
+  Rotation:
+[[ 1  0  0]
+ [ 0  0  1]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 36:
+  Rotation:
+[[-1  0  0]
+ [ 0  0 -1]
+ [ 0  1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 37:
+  Rotation:
+[[ 0 -1  0]
+ [ 0  0  1]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 38:
+  Rotation:
+[[ 0  1  0]
+ [ 0  0 -1]
+ [ 1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 39:
+  Rotation:
+[[-1  0  0]
+ [ 0  0  1]
+ [ 0  1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 40:
+  Rotation:
+[[ 1  0  0]
+ [ 0  0 -1]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 41:
+  Rotation:
+[[ 0 -1  0]
+ [ 0  0 -1]
+ [ 1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 42:
+  Rotation:
+[[ 0  1  0]
+ [ 0  0  1]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 43:
+  Rotation:
+[[-1  0  0]
+ [ 0  0 -1]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 44:
+  Rotation:
+[[1 0 0]
+ [0 0 1]
+ [0 1 0]]
+  Translation: [0. 0. 0.]
+
+Operation 45:
+  Rotation:
+[[ 0  1  0]
+ [ 0  0 -1]
+ [-1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 46:
+  Rotation:
+[[ 0 -1  0]
+ [ 0  0  1]
+ [ 1  0  0]]
+  Translation: [0. 0. 0.]
+
+Operation 47:
+  Rotation:
+[[ 1  0  0]
+ [ 0  0 -1]
+ [ 0  1  0]]
+  Translation: [0. 0. 0.]
+
+Operation 48:
+  Rotation:
+[[-1  0  0]
+ [ 0  0  1]
+ [ 0 -1  0]]
+  Translation: [0. 0. 0.]
+
+
+--- Irrep Character Tables ---
+Irrep 1: [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
+ 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
+ 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
+ 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
+ 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j]
+Irrep 2: [ 1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
+ -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
+  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
+ -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
+  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
+ -1.+0.j  1.+0.j -1.+0.j]
+Irrep 3: [ 1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
+  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
+ -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
+ -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
+  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
+  1.+0.j -1.+0.j -1.+0.j]
+Irrep 4: [ 1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
+ -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
+ -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
+  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
+  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
+ -1.+0.j -1.+0.j  1.+0.j]
+Irrep 5: [ 2.+0.j  2.+0.j  0.+0.j  0.+0.j  2.+0.j  2.+0.j  0.+0.j  0.+0.j  2.+0.j
+  2.+0.j  0.+0.j  0.+0.j  2.+0.j  2.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j
+  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j
+  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j
+ -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j
+ -1.+0.j  0.+0.j  0.+0.j]
+Irrep 6: [ 2.+0.j -2.+0.j  0.+0.j  0.+0.j  2.+0.j -2.+0.j  0.+0.j  0.+0.j  2.+0.j
+ -2.+0.j  0.+0.j  0.+0.j  2.+0.j -2.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j
+  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j
+  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j
+ -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j
+  1.+0.j  0.+0.j  0.+0.j]
+Irrep 7: [ 3.+0.j  3.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
+ -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j
+ -1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j
+ -1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j
+  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j
+  0.+0.j  1.+0.j  1.+0.j]
+Irrep 8: [ 3.+0.j -3.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
+  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j
+ -1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j
+  1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j
+  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j
+  0.+0.j  1.+0.j -1.+0.j]
+Irrep 9: [ 3.+0.j  3.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j
+ -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j
+  1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j
+  1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j
+  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j
+  0.+0.j -1.+0.j -1.+0.j]
+Irrep 10: [ 3.+0.j -3.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
+  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j
+  1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j
+ -1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j
+  0.+0.j  0.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j  0.+0.j
+  0.+0.j -1.+0.j  1.+0.j]
+
+============================================================
+PROJECTING DENSITY ONTO IRREPS
+============================================================
+
+=== Projecting charge component ===
+Max absolute value of original charge: 0.006525
+
+Projecting onto irrep 1...
+Done! Saved as BaTiO3_charge_irrep1.xsf
+Weight (max|proj|/max|orig|): 0.935805
+
+Projecting onto irrep 2...
+Projecting onto irrep 3...
+Projecting onto irrep 4...
+Projecting onto irrep 5...
+Done! Saved as BaTiO3_charge_irrep5.xsf
+Weight (max|proj|/max|orig|): 0.033885
+
+Projecting onto irrep 6...
+Projecting onto irrep 7...
+Projecting onto irrep 8...
+Done! Saved as BaTiO3_charge_irrep8.xsf
+Weight (max|proj|/max|orig|): 0.098358
+
+Projecting onto irrep 9...
+Projecting onto irrep 10...
+----------------------------------------
+
+All projections completed successfully!

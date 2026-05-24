@@ -4,6 +4,9 @@
 # the charge density onto the irreps of P6/mmm at the M point (M1+ irrep)
 # and the L point (L2- irrep). Additionally, we project onto the Gm5+ irrep,
 # which should be the secondary order parameter according to symmetry analysis.
+#
+# Notice: because the CHGCAR for this system is pretty large, this code might take 
+# a long time to run on a normal laptop (10-30 mins).
 
 import prodencer as pd
 import numpy as np
@@ -13,7 +16,7 @@ from spgrep.representation import get_character
 
 
 # Import density from VASP CHGCAR file
-lattice, atomic_positions, grid, charge = pd.VASP_get_density("CHGCAR")
+lattice, atomic_positions, atomic_species, grid, charge = pd.VASP_get_density("CHGCAR")
 
 # Import symmetries and irreps from spglib and spgrep
 symmetry = spglib.get_symmetry_from_database(485) #Space group Hall number
