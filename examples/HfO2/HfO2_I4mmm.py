@@ -67,7 +67,7 @@ tnons[2] = np.array([0.5, 0, 0.5])
 tnons[3] = np.array([0, 0.5, 0.5])
 
 #character table for the GM3- irrep corresponding to order of symmetry operations defined above.
-GM3m = 1*np.array([ 1,  1,  1,  1, -1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1,  1])
+GM3m = np.array([ 1,  1,  1,  1, -1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1,  1])
 
 #The phase of GM wavevector according to the tranlation components
 phase = np.array([1, 1, 1, 1])

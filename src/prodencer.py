@@ -157,7 +157,7 @@ def project_irreps(
         # --- Print symmetry elements and irrep characters ---
         write("\n=== Space Group Symmetry Operations ===")
         if is_manual:
-            write("Mode: FULLY MANUAL (spglib bypassed)")
+            write("Manual mode (spglib bypassed)")
             write(f"Provided manual operations: {len(little_group_symm)}")
             write(f"Selected phase: {phase}")
         else:
@@ -177,8 +177,10 @@ def project_irreps(
                 write("")
 
         write("\n--- Irrep Character Tables ---")
+        identity_indices = np.where(np.all(little_group_symm == np.eye(3, dtype=int), axis=(1, 2)))[0]
         for i, characters in enumerate(irreps_chars):
-            write(f"Irrep {i+1}: {np.round(characters,4)}")
+            d_alpha = int(np.real(characters[identity_indices[0]])) if len(identity_indices) > 0 else 1
+            write(f"Irrep {i+1} (Dimension: {d_alpha}): {np.round(characters,4)}")
         
         write("\n" + "="*60)
         if is_manual:
@@ -196,7 +198,8 @@ def project_irreps(
             write(f"Max absolute value of original {comp_name}: {max_original:.6f}\n")
             
             for i, char_table in enumerate(irreps_chars):
-                write(f"Projecting onto irrep {i+1}...")
+                d_alpha = int(np.real(char_table[identity_indices[0]])) if len(identity_indices) > 0 else 1
+                write(f"Projecting onto irrep {i+1} (Dimension: {d_alpha})...")
                 
                 if manual_irreps:
                     proj_density = project_single_irrep_manual(
@@ -283,6 +286,13 @@ def project_harmonics(
     decimals : int, optional
         Number of decimal places to use when formatting printed results. 
         Default is 4.
+    units : str, optional
+        Specifies the unit system for the projection.
+        - "multi": Uses multipolar units, expressed as |e|*Å^l for charge
+          densities or μ_B*Å^l for magnetization densities.
+        - "charge": Uses normalized units, i.e., |e| for charge and μ_B for
+          magnetic moments.
+        Default is "multi".
     basename: str, optional
         Base name for output files. Default is the directory name + _harmonics.pdout.
 
@@ -554,6 +564,14 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
     """
     Read a VASP density CHGCAR file.
+
+    Parameters
+    ----------
+    input : str, optional
+        Path to the VASP CHGCAR file. Default is "CHGCAR".
+    convert_to_bohr : bool, optional
+        If True, converts the lattice vectors from Angstroms to Bohr radii. 
+        Default is False.
 
     Returns:
       - If the file contains only the charge density (non-magnetic calculation):

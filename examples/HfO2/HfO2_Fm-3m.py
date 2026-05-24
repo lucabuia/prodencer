@@ -14,7 +14,7 @@ symm = np.array(symmetry['rotations'])[:48]
 tnons = np.array(symmetry['translations'])[0::48]
 
 #character table for the 3D GM4- irrep corresponding to order of symmetry operations from spglib.
-GM4m = 3*np.array([ 3, -3, 1, -1, -1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, 1, -1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1])
+GM4m = np.array([ 3, -3, 1, -1, -1, 1, 1, -1, -1, 1, -1, 1, -1, 1, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, 1, -1, 0, 0, 1, -1, 0, 0, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1])
 phase = np.array([1, 1, 1, 1])
 
 #project charge density to GM4- irrep of Fm-3m and write output in VASP format for visualization
