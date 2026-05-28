@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: prodencer
 Version: 1.0
 Summary: Project charge/spin Densities onto Cubic/tesseral harmonics and space-group Representations.
-Author: Luca Buiarelli
+Author: Luca Buiarelli, Seongjoo Jung, Hyeonseo Park, Turan Birol
 License: CC0
 Project-URL: homepage, https://github.com/lucabuia/prodencer
 Requires-Python: >=3.8
@@ -10,6 +10,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: numpy
 Requires-Dist: scipy
 Requires-Dist: matplotlib
+Requires-Dist: mplcursors
 Requires-Dist: spglib
 Requires-Dist: spgrep
 Requires-Dist: netCDF4

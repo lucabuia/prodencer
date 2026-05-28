@@ -157,7 +157,7 @@ def project_irreps(
         # --- Print symmetry elements and irrep characters ---
         write("\n=== Space Group Symmetry Operations ===")
         if is_manual:
-            write("Mode: FULLY MANUAL (spglib bypassed)")
+            write("Manual mode (spglib bypassed)")
             write(f"Provided manual operations: {len(little_group_symm)}")
             write(f"Selected phase: {phase}")
         else:
@@ -177,8 +177,10 @@ def project_irreps(
                 write("")
 
         write("\n--- Irrep Character Tables ---")
+        identity_indices = np.where(np.all(little_group_symm == np.eye(3, dtype=int), axis=(1, 2)))[0]
         for i, characters in enumerate(irreps_chars):
-            write(f"Irrep {i+1}: {np.round(characters,4)}")
+            d_alpha = int(np.real(characters[identity_indices[0]])) if len(identity_indices) > 0 else 1
+            write(f"Irrep {i+1} (Dimension: {d_alpha}): {np.round(characters,4)}")
         
         write("\n" + "="*60)
         if is_manual:
@@ -196,7 +198,8 @@ def project_irreps(
             write(f"Max absolute value of original {comp_name}: {max_original:.6f}\n")
             
             for i, char_table in enumerate(irreps_chars):
-                write(f"Projecting onto irrep {i+1}...")
+                d_alpha = int(np.real(char_table[identity_indices[0]])) if len(identity_indices) > 0 else 1
+                write(f"Projecting onto irrep {i+1} (Dimension: {d_alpha})...")
                 
                 if manual_irreps:
                     proj_density = project_single_irrep_manual(
@@ -242,7 +245,8 @@ def project_harmonics(
     auto_symmetry=False,
     output_components=False,
     decimals=4,
-    units="multi"
+    units="multi",
+    basename=None,
 ):
     """
     Project real-space density components onto tesseral harmonics 
@@ -282,6 +286,15 @@ def project_harmonics(
     decimals : int, optional
         Number of decimal places to use when formatting printed results. 
         Default is 4.
+    units : str, optional
+        Specifies the unit system for the projection.
+        - "multi": Uses multipolar units, expressed as |e|*Å^l for charge
+          densities or μ_B*Å^l for magnetization densities.
+        - "charge": Uses normalized units, i.e., |e| for charge and μ_B for
+          magnetic moments.
+        Default is "multi".
+    basename: str, optional
+        Base name for output files. Default is the directory name + _harmonics.pdout.
 
     Returns
     -------
@@ -300,8 +313,11 @@ def project_harmonics(
     if auto_symmetry and spacegroup == 1:
         spacegroup = find_Hall(lattice, atomic_positions, atomic_species)
 
-    input_basename = get_output_basename()
-    output_file = input_basename + "_harmonics.pdout"
+    if basename == None:
+        input_basename = get_output_basename()
+        output_file = input_basename + "_harmonics.pdout"
+    else:
+        output_file = basename
 
     center = np.asarray(center)
     positions = np.round(wyckoff(center, spacegroup), 5)
@@ -369,6 +385,9 @@ def project_harmonics(
 
         # --- Multipole projections ---
         for comp, arr in comp_arrays.items():
+            if comp == "charge":
+                arr = -arr
+                
             coeffs_list = []
 
             write(f"\n=== Projections for component: {comp} ===\n")
@@ -512,7 +531,7 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
 
         # charge is always component 0
-        charge = -density[0, :, :, :, 0] / norm_const
+        charge = density[0, :, :, :, 0] / norm_const
 
         # ----- branch on number of components -----
 
@@ -545,6 +564,14 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
 def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
     """
     Read a VASP density CHGCAR file.
+
+    Parameters
+    ----------
+    input : str, optional
+        Path to the VASP CHGCAR file. Default is "CHGCAR".
+    convert_to_bohr : bool, optional
+        If True, converts the lattice vectors from Angstroms to Bohr radii. 
+        Default is False.
 
     Returns:
       - If the file contains only the charge density (non-magnetic calculation):
@@ -628,19 +655,16 @@ def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
     if ncomp == 1:
         print("CHGCAR: charge only.")
         (charge,) = densities
-        charge = -charge
         return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
 
     elif ncomp == 2:
         print("CHGCAR: collinear spin (charge + m_z).")
         charge, mz = densities
-        charge = -charge
         return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
 
     elif ncomp == 4:
         print("CHGCAR: non-collinear spin (charge + mx,my,mz).")
         charge, mx, my, mz = densities
-        charge = -charge
         return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
 
     else:
@@ -736,9 +760,6 @@ def project_sphere(density, lattice, center_red, radius, units="multi"):
 
     # Shift density so the atomic center is at the center of the unit cell
     density, center_red = translate_density(density, center_red)
-
-    # Charge density is negative of electron density!
-    density = -density
 
     # Convert center from reduced to cartesian coordinates
     center = np.dot(center_red, lattice)
@@ -1524,6 +1545,10 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
     # Use PRIMITIVE coordinates for the phase calculation
     phase = np.exp(1j * 2 * np.pi * np.dot(translations_SC_primitive, kpoint))
 
+    # Find the dimension of the irrep (character of the identity operation)
+    identity_indices = np.where(np.all(symm == np.eye(3, dtype=int), axis=(1, 2)))[0]
+    d_alpha = np.real(char_table[identity_indices[0]]) if len(identity_indices) > 0 else 1.0
+
     # Initialize projected density
     proj = np.zeros(f.shape)
 
@@ -1561,7 +1586,7 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
 
             # Apply projection formula:
             proj[i, j, k] += np.real(
-                phase[t] * char_table[s] /
+                d_alpha * phase[t] * char_table[s] /
                 (symm.shape[0] * translations_SC_supercell.shape[0]) *
                 f[i_new, j_new, k_new]
             )
@@ -1597,6 +1622,10 @@ def project_single_irrep_manual(f, symm, tnons, char_table, phase):
     """
     
     grid = f.shape  # Grid dimensions (Nx, Ny, Nz)
+
+    # Find the dimension of the irrep (character of the identity operation)
+    identity_indices = np.where(np.all(symm == np.eye(3, dtype=int), axis=(1, 2)))[0]
+    d_alpha = np.real(char_table[identity_indices[0]]) if len(identity_indices) > 0 else 1.0
 
     # Initialize projected density
     proj = np.zeros(f.shape)
@@ -1635,7 +1664,7 @@ def project_single_irrep_manual(f, symm, tnons, char_table, phase):
 
             # Apply projection formula:
             proj[i, j, k] += np.real(
-                phase[t] * char_table[s] /
+                d_alpha * phase[t] * char_table[s] /
                 (symm.shape[0] * tnons.shape[0]) *
                 f[i_new, j_new, k_new]
             )

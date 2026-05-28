@@ -2,7 +2,7 @@ import prodencer as pd
 import numpy as np
 
 space_group_number = 424 # I4/mmm
-radius_O = 1.32 # Angstrom
+radius_O = 1.20 # Angstrom
 
 # Oxygen atom coordinates in reduced coordinates
 center_O = np.array([0.25, 0.25, 0.25])
@@ -67,7 +67,7 @@ tnons[2] = np.array([0.5, 0, 0.5])
 tnons[3] = np.array([0, 0.5, 0.5])
 
 #character table for the GM3- irrep corresponding to order of symmetry operations defined above.
-GM3m = 1*np.array([ 1,  1,  1,  1, -1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1,  1])
+GM3m = np.array([ 1,  1,  1,  1, -1, -1, -1, -1, -1, -1, -1, -1,  1,  1,  1,  1])
 
 #The phase of GM wavevector according to the tranlation components
 phase = np.array([1, 1, 1, 1])
