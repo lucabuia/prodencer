@@ -561,6 +561,88 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
             pass
 
 
+def ABINIT_get_density_perturbed(input):
+    """
+    Read an ABINIT density NetCDF file.
+
+    Returns:
+      - If the file contains only the charge density (non-magnetic calculation, nspden=1):
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
+      - If the file contains charge + 1 spin components (magnetic collinear calculation, nspden=2):
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
+      - If the file contains charge + 3 spin components (magnetic non-collinear calculation, nspden=4):
+          lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
+    """
+    if not os.path.isfile(input):
+        raise FileNotFoundError(f"ABINIT density file not found: {input}")
+
+    try:
+        dataset = nc.Dataset(input, 'r')
+    except Exception as e:
+        raise RuntimeError(f"Error opening NetCDF file: {e}")
+
+    try:
+        # ----- lattice -----
+        if "primitive_vectors" in dataset.variables:
+            lattice = dataset.variables["primitive_vectors"][:]
+        else:
+            raise RuntimeError("Primitive vectors not found.")
+
+        # ----- atomic positions -----
+        if "reduced_atom_positions" in dataset.variables:
+            atomic_positions = dataset.variables["reduced_atom_positions"][:].T
+        else:
+            raise RuntimeError("Atomic positions not found.")
+
+        # ----- atomic species -----
+        if "reduced_atom_positions" in dataset.variables:
+            atomic_species = dataset.variables["atom_species"][:].T
+        else:
+            raise RuntimeError("Atomic species not found.")
+
+        # ----- density -----
+        if "first_order_density" not in dataset.variables:
+            raise RuntimeError("Density data not found.")
+
+        density = dataset.variables["first_order_density"][:]
+        density = np.transpose(density, (4, 3, 2, 1, 0))
+
+        rc, ng1, ng2, ng3, components = density.shape
+
+        # normalization factor
+        norm_const = (ng1 * ng2 * ng3) / np.linalg.det(lattice)
+
+        # charge is always component 0
+        charge = -density[0, :, :, :, 0] / norm_const
+
+        # ----- branch on number of components -----
+
+        if components == 1:
+            print("ABINIT file: charge density only.")
+            return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge
+
+        elif components == 2:
+            print("ABINIT file: charge density and collinear spin density.")
+            mz = density[0, :, :, :, 1] / norm_const
+            return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mz
+
+        elif components == 4:
+            print("ABINIT file: charge density and full spin density (mx, my, mz).")
+            mx = density[0, :, :, :, 1] / norm_const
+            my = density[0, :, :, :, 2] / norm_const
+            mz = density[0, :, :, :, 3] / norm_const
+            return lattice, atomic_positions, atomic_species, (ng1, ng2, ng3), charge, mx, my, mz
+
+        else:
+            raise RuntimeError(f"Unexpected number of density components: {components}")
+
+    finally:
+        try:
+            dataset.close()
+        except:
+            pass
+
+
 def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
     """
     Read a VASP density CHGCAR file.
