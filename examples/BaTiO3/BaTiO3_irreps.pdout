@@ -351,60 +351,60 @@ Operation 48:
 
 
 --- Irrep Character Tables ---
-Irrep 1: [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
+Irrep 1 (Dimension: 1): [1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
  1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
  1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
  1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j
  1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j 1.+0.j]
-Irrep 2: [ 1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
+Irrep 2 (Dimension: 1): [ 1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
  -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
   1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
  -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
   1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j
  -1.+0.j  1.+0.j -1.+0.j]
-Irrep 3: [ 1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
+Irrep 3 (Dimension: 1): [ 1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
   1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
  -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
  -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
   1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
   1.+0.j -1.+0.j -1.+0.j]
-Irrep 4: [ 1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
+Irrep 4 (Dimension: 1): [ 1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
  -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
  -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
   1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j
   1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j
  -1.+0.j -1.+0.j  1.+0.j]
-Irrep 5: [ 2.+0.j  2.+0.j  0.+0.j  0.+0.j  2.+0.j  2.+0.j  0.+0.j  0.+0.j  2.+0.j
+Irrep 5 (Dimension: 2): [ 2.+0.j  2.+0.j  0.+0.j  0.+0.j  2.+0.j  2.+0.j  0.+0.j  0.+0.j  2.+0.j
   2.+0.j  0.+0.j  0.+0.j  2.+0.j  2.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j
   0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j
   0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j
  -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j
  -1.+0.j  0.+0.j  0.+0.j]
-Irrep 6: [ 2.+0.j -2.+0.j  0.+0.j  0.+0.j  2.+0.j -2.+0.j  0.+0.j  0.+0.j  2.+0.j
+Irrep 6 (Dimension: 2): [ 2.+0.j -2.+0.j  0.+0.j  0.+0.j  2.+0.j -2.+0.j  0.+0.j  0.+0.j  2.+0.j
  -2.+0.j  0.+0.j  0.+0.j  2.+0.j -2.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j
   0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j
   0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j
  -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j
   1.+0.j  0.+0.j  0.+0.j]
-Irrep 7: [ 3.+0.j  3.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
+Irrep 7 (Dimension: 3): [ 3.+0.j  3.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j
  -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j
  -1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j
  -1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j
   0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j
   0.+0.j  1.+0.j  1.+0.j]
-Irrep 8: [ 3.+0.j -3.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
+Irrep 8 (Dimension: 3): [ 3.+0.j -3.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j
   1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j
  -1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j
   1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j -1.+0.j
   0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j
   0.+0.j  1.+0.j -1.+0.j]
-Irrep 9: [ 3.+0.j  3.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j
+Irrep 9 (Dimension: 3): [ 3.+0.j  3.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j -1.+0.j
  -1.+0.j  1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j
   1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j  1.+0.j
   1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j -1.+0.j
   0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j  1.+0.j  0.+0.j
   0.+0.j -1.+0.j -1.+0.j]
-Irrep 10: [ 3.+0.j -3.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
+Irrep 10 (Dimension: 3): [ 3.+0.j -3.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j  1.+0.j -1.+0.j
   1.+0.j  1.+0.j -1.+0.j -1.+0.j  1.+0.j  1.+0.j -1.+0.j  0.+0.j  0.+0.j
   1.+0.j -1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j  1.+0.j
  -1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j  0.+0.j  0.+0.j -1.+0.j  1.+0.j
@@ -418,25 +418,25 @@ PROJECTING DENSITY ONTO IRREPS
 === Projecting charge component ===
 Max absolute value of original charge: 0.006525
 
-Projecting onto irrep 1...
+Projecting onto irrep 1 (Dimension: 1)...
 Done! Saved as BaTiO3_charge_irrep1.xsf
 Weight (max|proj|/max|orig|): 0.935805
 
-Projecting onto irrep 2...
-Projecting onto irrep 3...
-Projecting onto irrep 4...
-Projecting onto irrep 5...
+Projecting onto irrep 2 (Dimension: 1)...
+Projecting onto irrep 3 (Dimension: 1)...
+Projecting onto irrep 4 (Dimension: 1)...
+Projecting onto irrep 5 (Dimension: 2)...
 Done! Saved as BaTiO3_charge_irrep5.xsf
-Weight (max|proj|/max|orig|): 0.033885
+Weight (max|proj|/max|orig|): 0.067771
 
-Projecting onto irrep 6...
-Projecting onto irrep 7...
-Projecting onto irrep 8...
+Projecting onto irrep 6 (Dimension: 2)...
+Projecting onto irrep 7 (Dimension: 3)...
+Projecting onto irrep 8 (Dimension: 3)...
 Done! Saved as BaTiO3_charge_irrep8.xsf
-Weight (max|proj|/max|orig|): 0.098358
+Weight (max|proj|/max|orig|): 0.295075
 
-Projecting onto irrep 9...
-Projecting onto irrep 10...
+Projecting onto irrep 9 (Dimension: 3)...
+Projecting onto irrep 10 (Dimension: 3)...
 ----------------------------------------
 
 All projections completed successfully!

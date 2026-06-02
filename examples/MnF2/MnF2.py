@@ -22,6 +22,6 @@ radius_Mn = 2.11 # In units of Bohr
 # radius_F = 1.40
 
 # You can either use Abinit
-pd.project_harmonics("MnF2o_DEN.nc", "abinit", center_Mn, radius_Mn)
+pd.project_harmonics("MnF2o_DEN.nc", "abinit", center_Mn, radius_Mn, space_group_number, output_components=False, decimals=5)
 # or vasp
 # pd.project_harmonics("CHGCAR", "vasp", center_Mn, radius_Mn, space_group_number, output_components=False, decimals=5)

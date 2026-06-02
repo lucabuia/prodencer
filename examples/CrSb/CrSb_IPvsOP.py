@@ -1,3 +1,11 @@
+# Example usage of translate_density_to_point().
+#
+# We simulated altermagnetic CrSb in Abinit (check input file "CrSb.abi") and
+# obtained the charge/spin density, contained in the "CrSbo_DEN.nc". 
+# The function translates the spin density from one Cr ion to the other. We 
+# then separate the density into in-phase (ferroic) and out-of-phase (anti-
+# ferroic) parts
+
 import prodencer as pd
 import numpy as np
 
