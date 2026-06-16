@@ -1,6 +1,6 @@
-# ProDenCeR v1.1
+# ProDenCeR v0.2.0
 # Luca Buiarelli, Seongjoo Jung, Hyeonseo Park and Turan Birol
-# 2025
+# 2025-2026
 # Birol Group, CEMS, Univeristy of Minnesota, Minneapolis, USA
 #
 # This code is freely available for use, modification, and distribution.
