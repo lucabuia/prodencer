@@ -147,10 +147,7 @@ def project_irreps(
     with open(output_file, "w") as f:
 
         # --- Print lattice and positions ---
-        if dft_code == "vasp":
-            write("\n=== Lattice vectors (Angstroms) ===")
-        else:
-            write("\n=== Lattice vectors (Bohr radii) ===")
+        write("\n=== Lattice vectors (Angstroms) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
         
@@ -273,7 +270,7 @@ def project_harmonics(
         Reference position (in fractional coordinates) around which 
         the spherical expansion is performed.
     radius : float
-        Radius of the sphere (in Bohr radii) within which the density is projected.
+        Radius of the sphere (in Angstrom) within which the density is projected.
     spacegroup : int, optional
         Space group Hall number (default = 1, i.e. P1 symmetry). Used to generate
         Wyckoff-equivalent positions. For full list see: https://yseto.net/en/sg/sg1
@@ -368,12 +365,10 @@ def project_harmonics(
     with open(output_file, "w") as f:
 
         # --- Print lattice and positions ---
-        if dft_code == "vasp":
-            write("\n=== Lattice vectors (Angstroms) ===")
-        else:
-            write("\n=== Lattice vectors (Bohr radii) ===")
+        write("\n=== Lattice vectors (Angstroms) ===")
         for i, vec in enumerate(lattice):
             write(f"Vector {i+1}: [{vec[0]:.6f}, {vec[1]:.6f}, {vec[2]:.6f}]")
+        
         
         write(f"\n=== Space Group Hall number: {spacegroup:.0f} ===")
         write("(Visit https://yseto.net/en/sg/sg1 for full list of Hall numbers)")
@@ -533,6 +528,9 @@ def ABINIT_get_density(input="GSo_DEN.nc"):
         # charge is always component 0
         charge = density[0, :, :, :, 0] / norm_const
 
+        # convert lattice to Angstrom
+        lattice =  lattice * 0.5291772083
+
         # ----- branch on number of components -----
 
         if components == 1:
@@ -615,6 +613,9 @@ def ABINIT_get_density_perturbed(input):
         # charge is always component 0
         charge = -density[0, :, :, :, 0] / norm_const
 
+        # convert lattice to Angstrom
+        lattice =  lattice * 0.5291772083
+
         # ----- branch on number of components -----
 
         if components == 1:
@@ -643,7 +644,7 @@ def ABINIT_get_density_perturbed(input):
             pass
 
 
-def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
+def VASP_get_density(input="CHGCAR"):
     """
     Read a VASP density CHGCAR file.
 
@@ -651,9 +652,6 @@ def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
     ----------
     input : str, optional
         Path to the VASP CHGCAR file. Default is "CHGCAR".
-    convert_to_bohr : bool, optional
-        If True, converts the lattice vectors from Angstroms to Bohr radii. 
-        Default is False.
 
     Returns:
       - If the file contains only the charge density (non-magnetic calculation):
@@ -675,10 +673,6 @@ def VASP_get_density(input="CHGCAR", convert_to_bohr=False):
         lattice = np.zeros((3, 3), float)
         for i in range(3):
             lattice[i] = np.array(chgcar.readline().split(), float)
-
-        if convert_to_bohr:
-            # Convert VASP Å → Bohr
-            lattice = lattice / 0.5291772083
 
         # --- atom info ---
         atom_types = chgcar.readline().split()
@@ -824,10 +818,10 @@ def project_sphere(density, lattice, center_red, radius, units="multi"):
     density (numpy.ndarray): 3D array of the density.
     lattice (numpy.ndarray): 3x3 array of lattice vectors.
     center_red (numpy.ndarray): 1x3 array containing the reduced coordinates of the atom.
-    radius (float): Radius of the sphere centered at the atom, in atomic (Bohr radii) units.
+    radius (float): Radius of the sphere centered at the atom, in units of Angstroms.
     units (str): Specifies the unit system for the projection.
-        - "multi": Uses multipolar units, expressed as |e|*a0^l for charge densities
-          or μ_B*a0^l for magnetization densities, where a0 is the Bohr radius,
+        - "multi": Uses multipolar units, expressed as |e|*\AA^l for charge densities
+          or μ_B*\AA^l for magnetization densities, where \AA is the Angstrom unit,
           |e| is the elementary charge, and μ_B is the Bohr magneton.
           These units correspond to multipole moments of order l.
         - "charge": Uses normalized units, i.e., |e| for charge
@@ -1784,7 +1778,7 @@ def xrd_powder(charge, lattice, lambda_x=1.5406, do_plot=True):
     charge : 3D array
         Charge density on a real-space grid.
     lattice : array-like (3x3)
-        Direct lattice vectors in Bohr.
+        Direct lattice vectors in angstrom.
     lambda_x : float
         X-ray wavelength in Å (default: Cu Kα = 1.5406 Å).
     do_plot : bool
@@ -1799,9 +1793,6 @@ def xrd_powder(charge, lattice, lambda_x=1.5406, do_plot=True):
     """
 
     Nx, Ny, Nz = charge.shape
-
-    # Convert lattice to Angstrom
-    a1, a2, a3 = lattice[0]*0.529177, lattice[1]*0.529177, lattice[2]*0.529177
 
     V = np.dot(a1, np.cross(a2, a3))
     astar = 2*np.pi * np.cross(a2, a3) / V
@@ -1882,9 +1873,6 @@ def xrd_powder(charge, lattice, lambda_x=1.5406, do_plot=True):
 import mplcursors
 def xrd_crystal(charge, lattice, plane='001', shift=0.0, do_plot=True):
     Nx, Ny, Nz = charge.shape
-
-    # Convert lattice to Angstrom
-    a1, a2, a3 = lattice[0]*0.529177, lattice[1]*0.529177, lattice[2]*0.529177
 
     V = np.dot(a1, np.cross(a2, a3))
     astar = 2*np.pi * np.cross(a2, a3) / V

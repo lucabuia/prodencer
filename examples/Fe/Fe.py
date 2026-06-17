@@ -17,6 +17,6 @@ dft_code = "abinit"
 # pd.generate_xsf_file(mz, lattice, "mz.xsf")
 
 # Project the charge and spin density around the Fe ion onto the tesseral harmonics
-radius = 2
+radius = 1
 
 pd.project_harmonics(input_file, dft_code, [0.5,0.5,0.5], radius, decimals=5, output_components=False)
