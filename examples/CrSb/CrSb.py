@@ -15,7 +15,7 @@ space_group_number = 488 # P6_3/mmc, for full list of Hall numbers check https:/
 
 # Cr ion
 center_Cr = np.array([0, 0, 0.5]) # Coordinates of one Cr ion
-radius_Cr = 2.11 # In units of Bohr
+radius_Cr = 1.05 # In units of Angstroms
 
 # Using Abinit
 pd.project_harmonics("CrSbo_DEN.nc", "abinit", center_Cr, radius_Cr, space_group_number, output_components=False, decimals=5)

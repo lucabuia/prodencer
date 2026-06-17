@@ -3,7 +3,7 @@ import numpy as np
 
 # Central Mn ion
 center_Mn = np.array([0.5, 0.5, 0.5]) # Coordinates of the central Mn ion
-radius_Mn = 3
+radius_Mn = 1.5
 
 lattice, atomic_positions, atomic_species, grid, charge, mx, my, mz = pd.ABINIT_get_density("MnF2o_DEN.nc")
 

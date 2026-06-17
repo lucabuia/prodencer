@@ -15,7 +15,7 @@ space_group_number = 425 # I4/mcm, for full list of Hall numbers check https://y
 
 # Mn ion
 center_Mn = np.array([0.2257, 0.7257, 0.5]) # Coordinates of one Mn ion
-radius_Mn = 2.11 # In units of Bohr
+radius_Mn = 1.05 # In units of Angstrom
 
 # Use Abinit
 pd.project_harmonics("KMnF3_DEN.nc", "abinit", center_Mn, radius_Mn, space_group_number, output_components=False, decimals=7)
