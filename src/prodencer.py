@@ -21,6 +21,7 @@ from numpy.fft import fftn, fftshift
 import matplotlib.pyplot as plt
 from scipy.spatial import Voronoi, voronoi_plot_2d
 from scipy.ndimage import zoom
+from numba import njit, prange
 
 def project_irreps(
     density_file,
@@ -1575,6 +1576,62 @@ def find_Hall(lattice, atomic_positions, atomic_species):
 
     return Hall
 
+@njit(parallel=True)
+def _project_numba_translation(proj, f, symm, tnons, trans_t, char_table, phase_t, d_alpha):
+    Nx, Ny, Nz = f.shape
+    N_symm = symm.shape[0]
+    
+    for i in prange(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
+                acc = 0.0
+                for s in range(N_symm):
+                    v_rot_x = symm[s, 0, 0]*i + symm[s, 0, 1]*j + symm[s, 0, 2]*k
+                    v_rot_y = symm[s, 1, 0]*i + symm[s, 1, 1]*j + symm[s, 1, 2]*k
+                    v_rot_z = symm[s, 2, 0]*i + symm[s, 2, 1]*j + symm[s, 2, 2]*k
+                    
+                    shift_x = (tnons[s, 0] + trans_t[0]) * Nx
+                    shift_y = (tnons[s, 1] + trans_t[1]) * Ny
+                    shift_z = (tnons[s, 2] + trans_t[2]) * Nz
+                    
+                    i_new = int((v_rot_x + shift_x) % Nx)
+                    j_new = int((v_rot_y + shift_y) % Ny)
+                    k_new = int((v_rot_z + shift_z) % Nz)
+                    
+                    factor = d_alpha * char_table[s] / N_symm
+                    val = factor * phase_t * f[i_new, j_new, k_new]
+                    acc += val.real
+                        
+                proj[i, j, k] += acc
+
+@njit(parallel=True)
+def _project_numba_manual_translation(proj, f, symm, trans_t, char_table, phase_t, d_alpha):
+    Nx, Ny, Nz = f.shape
+    N_symm = symm.shape[0]
+    
+    for i in prange(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
+                acc = 0.0
+                for s in range(N_symm):
+                    v_rot_x = symm[s, 0, 0]*i + symm[s, 0, 1]*j + symm[s, 0, 2]*k
+                    v_rot_y = symm[s, 1, 0]*i + symm[s, 1, 1]*j + symm[s, 1, 2]*k
+                    v_rot_z = symm[s, 2, 0]*i + symm[s, 2, 1]*j + symm[s, 2, 2]*k
+                    
+                    shift_x = trans_t[0] * Nx
+                    shift_y = trans_t[1] * Ny
+                    shift_z = trans_t[2] * Nz
+                    
+                    i_new = int((v_rot_x + shift_x) % Nx)
+                    j_new = int((v_rot_y + shift_y) % Ny)
+                    k_new = int((v_rot_z + shift_z) % Nz)
+                    
+                    factor = d_alpha * char_table[s] / N_symm
+                    val = factor * phase_t * f[i_new, j_new, k_new]
+                    acc += val.real
+                        
+                proj[i, j, k] += acc
+
 
 def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
     """
@@ -1625,48 +1682,33 @@ def project_single_irrep(f, symm, tnons, char_table, supercell_size, kpoint):
     identity_indices = np.where(np.all(symm == np.eye(3, dtype=int), axis=(1, 2)))[0]
     d_alpha = np.real(char_table[identity_indices[0]]) if len(identity_indices) > 0 else 1.0
 
-    # Initialize projected density
-    proj = np.zeros(f.shape)
-
-    # Loop over supercell translations
-    for t in range(translations_SC_supercell.shape[0]):
-        # Loop over all symmetry operations in the parent space group
-        for s in range(symm.shape[0]):
-            # Generate grid of integer indices (i, j, k)
-            i, j, k = np.meshgrid(
-                np.arange(grid[0]),
-                np.arange(grid[1]),
-                np.arange(grid[2]),
-                indexing='ij'
-            )
-
-            # Stack indices into vectors of shape (Nx, Ny, Nz, 3)
-            v = np.stack((i, j, k), axis=-1)
-
-            # Apply rotation to grid points
-            v_new = np.tensordot(v, symm[s], axes=([3], [1])).astype(float)
-
-            # Apply translation (tnons) and supercell translation (translations_SC_supercell[t])
-            # Use SUPERCELl coordinates for the grid transformation
-            v_new += (tnons[s] + translations_SC_supercell[t]) * grid
-
-            # Wrap indices back into grid range using modulo
-            i_new = v_new[..., 0] % grid[0]
-            j_new = v_new[..., 1] % grid[1]
-            k_new = v_new[..., 2] % grid[2]
-
-            # Convert to integer indices
-            i_new = i_new.astype(int)
-            j_new = j_new.astype(int)
-            k_new = k_new.astype(int)
-
-            # Apply projection formula:
-            proj[i, j, k] += np.real(
-                d_alpha * phase[t] * char_table[s] /
-                (symm.shape[0] * translations_SC_supercell.shape[0]) *
-                f[i_new, j_new, k_new]
-            )
-
+    import sys
+    
+    # Ensure inputs are contiguous arrays for Numba
+    symm = np.ascontiguousarray(symm, dtype=np.int64)
+    tnons = np.ascontiguousarray(tnons, dtype=np.float64)
+    translations = np.ascontiguousarray(translations_SC_supercell, dtype=np.float64)
+    char_table = np.ascontiguousarray(char_table, dtype=np.complex128)
+    phase = np.ascontiguousarray(phase, dtype=np.complex128)
+    f_arr = np.ascontiguousarray(f, dtype=np.float64)
+    d_alpha_val = float(d_alpha)
+    
+    proj = np.zeros_like(f_arr)
+    N_trans = translations.shape[0]
+    
+    sys.stdout.write("\r  Compiling projection with Numba...\n")
+    sys.stdout.flush()
+    
+    for t in range(N_trans):
+        _project_numba_translation(proj, f_arr, symm, tnons, translations[t], char_table, phase[t], d_alpha_val)
+        sys.stdout.write(f"\r  Processing translation {t+1}/{N_trans}...")
+        sys.stdout.flush()
+        
+    proj /= N_trans
+    
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+    
     return proj
 
 
@@ -1703,47 +1745,31 @@ def project_single_irrep_manual(f, symm, tnons, char_table, phase):
     identity_indices = np.where(np.all(symm == np.eye(3, dtype=int), axis=(1, 2)))[0]
     d_alpha = np.real(char_table[identity_indices[0]]) if len(identity_indices) > 0 else 1.0
 
-    # Initialize projected density
-    proj = np.zeros(f.shape)
-
-    # Loop over supercell translations
-    for t in range(tnons.shape[0]):
-        # Loop over all symmetry operations in the parent space group
-        for s in range(symm.shape[0]):
-            # Generate grid of integer indices (i, j, k)
-            i, j, k = np.meshgrid(
-                np.arange(grid[0]),
-                np.arange(grid[1]),
-                np.arange(grid[2]),
-                indexing='ij'
-            )
-
-            # Stack indices into vectors of shape (Nx, Ny, Nz, 3)
-            v = np.stack((i, j, k), axis=-1)
-
-            # Apply rotation to grid points
-            v_new = np.tensordot(v, symm[s], axes=([3], [1])).astype(float)
-
-            # Apply translation (tnons) and supercell translation (translations_SC_supercell[t])
-            # Use SUPERCELl coordinates for the grid transformation
-            v_new += (tnons[t]) * grid
-
-            # Wrap indices back into grid range using modulo
-            i_new = v_new[..., 0] % grid[0]
-            j_new = v_new[..., 1] % grid[1]
-            k_new = v_new[..., 2] % grid[2]
-
-            # Convert to integer indices
-            i_new = i_new.astype(int)
-            j_new = j_new.astype(int)
-            k_new = k_new.astype(int)
-
-            # Apply projection formula:
-            proj[i, j, k] += np.real(
-                d_alpha * phase[t] * char_table[s] /
-                (symm.shape[0] * tnons.shape[0]) *
-                f[i_new, j_new, k_new]
-            )
+    import sys
+    
+    # Ensure inputs are contiguous arrays for Numba
+    symm = np.ascontiguousarray(symm, dtype=np.int64)
+    tnons = np.ascontiguousarray(tnons, dtype=np.float64)
+    char_table = np.ascontiguousarray(char_table, dtype=np.complex128)
+    phase = np.ascontiguousarray(phase, dtype=np.complex128)
+    f_arr = np.ascontiguousarray(f, dtype=np.float64)
+    d_alpha_val = float(d_alpha)
+    
+    proj = np.zeros_like(f_arr)
+    N_trans = tnons.shape[0]
+    
+    sys.stdout.write("\r  Compiling manual projection with Numba...\n")
+    sys.stdout.flush()
+    
+    for t in range(N_trans):
+        _project_numba_manual_translation(proj, f_arr, symm, tnons[t], char_table, phase[t], d_alpha_val)
+        sys.stdout.write(f"\r  Processing translation {t+1}/{N_trans}...")
+        sys.stdout.flush()
+        
+    proj /= N_trans
+    
+    sys.stdout.write("\n")
+    sys.stdout.flush()
 
     return proj
 
