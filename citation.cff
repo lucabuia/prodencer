@@ -1,7 +1,8 @@
-cff-version: 0.2.0
+cff-version: 1.0.0
 message: >
   If you use this software, please cite it using the metadata below.
 title: "ProDenCeR"
+type: software
 authors:
   - family-names: Buiarelli
     given-names: Luca
@@ -13,8 +14,7 @@ authors:
     given-names: Turan
 date-released: 2026-06-15
 version: "0.2.0"
-doi: https://doi.org/10.13020/mwmz-ym10
-url: https://doi.org/10.13020/mwmz-ym10
-repository: https://github.com/lucabuia/prodencer
-license: CC0 1.0 Universal
-type: software
+doi: 10.13020/mwmz-ym10
+url: "https://doi.org/10.13020/mwmz-ym10"
+repository-code: "https://github.com/lucabuia/prodencer"
+license: CC0-1.0
